@@ -84,16 +84,23 @@ Mrbr.System.Assembly = class {
      */
     static addTypeNameScript(className) { const assembly = this; return `${className}.${assembly.typePropertyName} = "${className}";Object.defineProperty(${className}.prototype, '${assembly.typePropertyName}', { get: function() {return ${className}.${assembly.typePropertyName};}});` }
     /**
-     * Replace Regex to replace Mrbr in namespace to url root when loading file
+     * Default replace Regex to replace Mrbr in namespace to url root when loading file
      */
-    static rxMrbrReplace = /^Mrbr\./
+    static rxMrbrReplaceRoot = /^Mrbr\./
     /**
-     * Replace Regex to replace all instances of dot
+     * Default regex to replace all instances of dot
      */
-    static rxMrbrReplaceWith = /\./g
+    static rxMrbrReplaceDots = /\./g
+    /**
+     * Collection of replacements of namespaces to files
+     */
+    static fileReplacments = [
+        {replace:Mrbr.System.Assembly.rxMrbrReplaceRoot , with:"/"},
+        {replace:Mrbr.System.Assembly.rxMrbrReplaceDots , with:"/"}
+    ];
     /**
      * Static object of all files loaded through Assembly
-     */
+     */    
     static loader = {};
     /**
      * 
@@ -104,11 +111,16 @@ Mrbr.System.Assembly = class {
      */
     static loadClass(className) {
         const assembly = this,
-            assemblyToObject = assembly.toObject
+            assemblyToObject = assembly.toObject,
+            fileReplacments = Mrbr.System.Assembly.fileReplacments;
         return new Promise((resolve, reject) => {
             let obj = assemblyToObject(className);
             if (!(obj instanceof Function)) {
-                assembly.loadFile(`${className.replace(assembly.rxMrbrReplace, "/").replace(assembly.rxMrbrReplaceWith, "/")}.js`)
+                let fileName;
+                fileReplacments.forEach(replacement=>{
+                    fileName = `${className.replace(replacement.replace, replacement.with)}.js`
+                });
+                assembly.loadFile(fileName)
                     .then(result => {
                         Function(`${result};${assembly.addTypeNameScript(className)}`)();
                         obj = assemblyToObject(className);
