@@ -84,19 +84,11 @@ Mrbr.System.Assembly = class {
      */
     static addTypeNameScript(className) { const assembly = this; return `${className}.${assembly.typePropertyName} = "${className}";Object.defineProperty(${className}.prototype, '${assembly.typePropertyName}', { get: function() {return ${className}.${assembly.typePropertyName};}});` }
     /**
-     * Default replace Regex to replace Mrbr in namespace to url root when loading file
-     */
-    static rxMrbrReplaceRoot = /^Mrbr\./
-    /**
-     * Default regex to replace all instances of dot
-     */
-    static rxMrbrReplaceDots = /\./g
-    /**
-     * Collection of replacements of namespaces to files
+     * Default Collection of replacements of namespaces to files
      */
     static fileReplacments = [
-        {replace:Mrbr.System.Assembly.rxMrbrReplaceRoot , with:"/"},
-        {replace:Mrbr.System.Assembly.rxMrbrReplaceDots , with:"/"}
+        {replace:/^Mrbr\./ , with:"/"},
+        {replace:/\./g , with:"/"}
     ];
     /**
      * Static object of all files loaded through Assembly
@@ -116,10 +108,11 @@ Mrbr.System.Assembly = class {
         return new Promise((resolve, reject) => {
             let obj = assemblyToObject(className);
             if (!(obj instanceof Function)) {
-                let fileName;
+                let fileName = className
                 fileReplacments.forEach(replacement=>{
-                    fileName = `${className.replace(replacement.replace, replacement.with)}.js`
+                    fileName = `${fileName.replace(replacement.replace, replacement.with)}`
                 });
+                fileName +=".js"
                 assembly.loadFile(fileName)
                     .then(result => {
                         Function(`${result};${assembly.addTypeNameScript(className)}`)();
