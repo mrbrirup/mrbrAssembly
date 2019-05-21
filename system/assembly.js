@@ -166,13 +166,15 @@ Mrbr.System.Assembly = class {
                     })
             }
             else {
+                assembly.setInheritance(obj.inherits, obj);
+                assembly.addClassCtor(assemblyToObject(className));
                 resolve(obj)
             }
         })
     }
     /**
      * 
-     * @param {ManifestEntry[]} manifest load an array of manifest entries, script or classes
+     * @param {ManifestEntry[]} manifest load an array of manifest entries, script or classes n.    
      */
     static loadManifest(manifest) {
         if (manifest === undefined) { return Promise.resolve() }
