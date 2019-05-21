@@ -25,6 +25,7 @@ Mrbr.System.Assembly = class {
      *                                      {string}    argument[0] =   new namespaced object created in Window                                                   
      * @returns {object}        either a new namespaced object or the existing object
      */
+    static using = ["Mrbr.System.ManifestEntry"]
     static toObject(...args) {
         let argCount = args.length,
             target = (argCount == 1) ? window : args[0],
@@ -53,26 +54,54 @@ Mrbr.System.Assembly = class {
      */
     static loadFile(url) {
         const loader = Mrbr.System.Assembly.loader;
-        if (loader.hasOwnProperty(url)) {
-            return loader[url].promise
-        }
-        let xmlHttp = new XMLHttpRequest();
-        xmlHttp.open("GET", url, true);
-        xmlHttp.send(null);
-        let prm = new Promise((resolve, reject) => {
-            xmlHttp.onreadystatechange = function () {
-                if (xmlHttp.readyState === 4) {
-                    if (xmlHttp.status === 200) {
-                        loader[url].result = xmlHttp.responseText;
-                        resolve(xmlHttp.responseText);
-                    } else {
-                        reject();
+        //     if(loader[url].result == undefined){
+        //         return loader[url].promise;
+        //     }
+        //     else{
+        //         return Promise.resolve();
+        //     }
+        // }
+        if (!loader.hasOwnProperty(url)) {
+            let xmlHttp = new XMLHttpRequest();
+            xmlHttp.open("GET", url, true);
+            xmlHttp.send(null);
+            let prm = new Promise((resolve, reject) => {
+                // xmlHttp.onload = function () {
+                //             loader[url].result = xmlHttp.responseText;
+                //             setTimeout(function(){
+                //                 resolve(xmlHttp.responseText);                    
+                //             },50);
+                // };
+                xmlHttp.onreadystatechange = function () {
+                    if (xmlHttp.readyState === 4) {
+                        if (xmlHttp.status === 200) {
+                            loader[url].result = xmlHttp.responseText;
+                            resolve(xmlHttp.responseText);
+                        } else {
+                            reject();
+                        }
                     }
-                }
-            };
-        })
-        loader[url] = { promise: prm, result: undefined };
-        return prm;
+                };
+            })
+            loader[url] = { promise: prm , result: undefined };
+            return prm;
+        }
+        else{
+            return loader[url].promise;
+        }
+        // if (loader.hasOwnProperty(url)) {
+        // }
+        // else{
+        //     loader[url].promises.push(prm);
+        // }
+        //     if(loader[url].result == undefined){
+            //         return loader[url].promise;
+            //     loader[url].promises.push(prm);
+        //     }
+        //     else{
+        //         return Promise.resolve();
+        //     }
+        // }
     }
     /**
      * Property name added to each loaded class returns full namespaced object name
@@ -87,12 +116,12 @@ Mrbr.System.Assembly = class {
      * Default Collection of replacements of namespaces to files
      */
     static fileReplacments = [
-        {replace:/^Mrbr\./ , with:"/"},
-        {replace:/\./g , with:"/"}
+        { replace: /^Mrbr\./, with: "/" },
+        { replace: /\./g, with: "/" }
     ];
     /**
      * Static object of all files loaded through Assembly
-     */    
+     */
     static loader = {};
     /**
      * 
@@ -109,23 +138,89 @@ Mrbr.System.Assembly = class {
             let obj = assemblyToObject(className);
             if (!(obj instanceof Function)) {
                 let fileName = className
-                fileReplacments.forEach(replacement=>{
+                fileReplacments.forEach(replacement => {
                     fileName = `${fileName.replace(replacement.replace, replacement.with)}`
                 });
-                fileName +=".js"
+                fileName += ".js"
                 assembly.loadFile(fileName)
                     .then(result => {
                         Function(`${result};${assembly.addTypeNameScript(className)}`)();
                         obj = assemblyToObject(className);
-                        var toload = [].concat(obj.using ? obj.using : [], obj.inherits ? obj.inherits : []);
-                        assembly.loadClasses(toload).then(result => {
+                        const distinct = (value, index, arr)=>{
+                            return arr.indexOf(value) === index;
+                        }
+                        //var toload = [].concat(obj.using ? obj.using : [], obj.inherits ? obj.inherits : []);
+                        //toload = toload.filter(distinct);
+                        assembly.loadClasses(obj.inherits)
+                        .then(()=>{
+                            
+                            return assembly.loadClasses(obj.using)
+                        })
+                        .then(()=>{ 
                             assembly.setInheritance(obj.inherits, obj);
                             assembly.addClassCtor(assemblyToObject(className));
-                            resolve(obj)
-                        });
+                            resolve(obj);
+                        })
+                        //assembly.loadClasses(toload).then(result => {
+                        //});
                     })
             }
+            else {
+                resolve(obj)
+            }
         })
+    }
+    /**
+     * 
+     * @param {ManifestEntry[]} manifest load an array of manifest entries, script or classes
+     */
+    static loadManifest(manifest) {
+        if (manifest === undefined) { return Promise.resolve() }
+        const assembly = Mrbr.System.Assembly,
+            fileTypes = Mrbr.System.ManifestEntry.FileTypes;
+        return Promise.all((Array.isArray(manifest) ? manifest : [manifest])
+            .map(function (manifestEntry) {
+                switch (manifestEntry.fileType) {
+                    case fileTypes.Class:
+                        return new Promise((resolve, reject) => {
+                            assembly.loadClass(manifestEntry.entryName).then(result => resolve());
+                        })
+                    case fileTypes.Script:
+                        return new Promise((resolve, reject) => {
+                            assembly.loadScript(manifestEntry.entryName).then(result => resolve());
+                        })
+                }
+            }));
+    }
+    /**
+     * 
+     * @param {string} fileName load script from filename
+     * 
+     */
+    static loadScript(fileName) {
+        const assembly = this;
+        return new Promise((resolve, reject) => {
+            assembly.loadFile(fileName)
+                .then(result => {
+                    Function(result)();
+                    resolve();
+                });
+        });
+    }
+    /**
+     * 
+     * @param {string or string[]} fileNames load array of scripts from filenames
+     * 
+     */
+    static loadScripts(fileNames) {
+        if (fileNames === undefined) { return Promise.resolve(); }
+        const assembly = this;
+        return Promise.all((Array.isArray(fileNames) ? fileNames : [fileNames])
+            .map(function (fileNames) {
+                return new Promise(function (resolve, reject) {
+                    assembly.loadFile(fileNames).then(result => resolve());
+                })
+            }));
     }
     /**
      * List of functions to find constructor in class source code
@@ -197,7 +292,7 @@ Mrbr.System.Assembly = class {
                 console.log(passObj.tokenBody)
                 console.log(passObj.tokenArgs)
                 console.log(`return function ctor ${tokenConstructorArgs.value(tokenString)} {${tokenConstructorBody.value(tokenString)}}`)
-                throw e; 
+                throw e;
             }
         }
     }
@@ -208,7 +303,7 @@ Mrbr.System.Assembly = class {
      * @returns {Promise.all} Promises of all loading classes
      */
     static loadClasses(classes) {
-        if (classes == undefined) { return Promise.resolve(); }
+        if (classes == undefined || classes.length == 0) { return Promise.resolve(); }
         const assembly = this;
         return Promise.all((Array.isArray(classes) ? classes : [classes])
             .map(function (className) {
@@ -226,13 +321,21 @@ Mrbr.System.Assembly = class {
         if (sources == undefined) { return; }
         Mrbr.System.Inheritance.applyInheritance(sources, target);
     }
+    /**
+     * Load the required classes and usings for Mrbr.System.Assembly
+     * Specific requirement for this class only
+     * Additional application scripts should be run after Assembly Initialise Promise is resolved 
+     */
+    static initialised() {
+        return new Promise((resolve, reject) => {
+            Mrbr.System.Assembly
+                .loadClass("Mrbr.Utils.Parser.Tokeniser")
+                .then(function () { return Mrbr.System.Assembly.loadClass("Mrbr.System.Inheritance") })
+                .then(function () {
+                    Function(Mrbr.System.Assembly.addTypeNameScript("Mrbr.System.Assembly"))()
+                    return Mrbr.System.Assembly.loadClasses(Mrbr.System.Assembly.using)
+                })
+                .then(function () { resolve(); });
+        })
+    }
 }
-/**
- * Load the required classes and usings for Mrbr.System.Assembly
- * Specific requirement for this class only
- */
-Mrbr.System.Assembly.loadClass("Mrbr.Utils.Parser.Tokeniser").then(() => {
-    Mrbr.System.Assembly.loadClass("Mrbr.System.Inheritance")
-})
-Function(Mrbr.System.Assembly.addTypeNameScript("Mrbr.System.Assembly"))()
-Mrbr.System.Assembly.loadClasses(Mrbr.System.Assembly.using);
