@@ -1,0 +1,25 @@
+{
+  "name": "mrbrassembly",
+  "version": "1.0.0",
+  "description": "Assembly, Class, Inheritance and Requirements loader",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mrbrirup/mrbrAssembly.git"
+  },
+  "keywords": [
+    "assembly",
+    "class",
+    "inheritance",
+    "requirements"
+  ],
+  "author": "Martin Ruppersburg",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mrbrirup/mrbrAssembly/issues"
+  },
+  "homepage": "https://github.com/mrbrirup/mrbrAssembly#readme"
+}
