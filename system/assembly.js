@@ -170,7 +170,7 @@ Mrbr.System.Assembly = class {
     }
     /**
      * 
-     * @param {ManifestEntry[]} manifest load an array of manifest entries, script or classes n.    
+     * @param {ManifestEntry[]} manifest load an array of manifest entries, script or classes
      */
     static loadManifest(manifest) {
         if (manifest === undefined) { return Promise.resolve() }
@@ -352,5 +352,29 @@ Mrbr.System.Assembly = class {
                 })
                 .then(function () { resolve(); });
         })
+    }
+    static onReady() {
+        const assembly = Mrbr.System.Assembly;
+        let fnResolved,
+            prm = new Promise((resolve, reject) => {
+                fnResolved = resolve;
+            })
+        assembly
+            .initialised()
+            .then(() => {
+                if (document.readyState === "complete") {
+                    fnResolved("complete");
+                }
+                else {
+                    if (document.addEventListener) {
+                        document.addEventListener("DOMContentLoaded", function () { fnResolved("DOMContentLoaded") }, false);
+                        window.addEventListener("load", function () { fnResolved("load") }, false);
+                    } else {
+                        document.attachEvent("onreadystatechange", function () { fnResolved("onreadystatechange") });
+                        window.attachEvent("onload", function () { fnResolved("onload") });
+                    }
+                }
+            });
+        return prm;
     }
 }
