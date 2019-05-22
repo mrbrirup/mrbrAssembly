@@ -170,7 +170,7 @@ Mrbr.System.Assembly = class {
     }
     /**
      * 
-     * @param {ManifestEntry[]} manifest load an array of manifest entries, script or classes
+     * @param {ManifestEntry[]} manifest load an array of manifest entries, script or classes n.    
      */
     static loadManifest(manifest) {
         if (manifest === undefined) { return Promise.resolve() }
