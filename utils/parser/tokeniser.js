@@ -18,7 +18,7 @@ Mrbr.Utils.Parser.Tokeniser = class Tokeniser {
     /**
      * 
      * @param {string} source Source text to be Tokenised
-     */
+     *
     tokenise(source) {
         let self = this,
             selfTokeniseQuotes = self.tokeniseQuotes,
@@ -58,14 +58,15 @@ Mrbr.Utils.Parser.Tokeniser = class Tokeniser {
                 arrStarts.push({ key: match[0], pos: pos, sort: pos * sourceLength - match[0].length, type: "rx", rxResult: match, rxGroupName: rxTypes.group, rxTypeName: rxTypes.name, lastIndex: rxTypes.rx.lastIndex, tokenClass: parserToken })
             }
         });
+        let startMarker = 0;
         arrStarts = arrStarts
             .filter(obj => obj.pos >= 0)    // filter for those marker past the start point
             .sort((obj1, obj2) => (obj1.sort - obj2.sort)); //  sort by sort property. Sort property is marker position * source text length - marker length.
         //  Causes longer token to be processed first >>>= before >>= before >=
         //  Shorter tokens are deleted before the next cycle as they share a start point and this has been passed
-        firstFound = arrStarts[0];
+        firstFound = arrStarts[startMarker];
         // cycle through initial markers, but only work on the first one
-        while (arrStarts.length > 0) {
+        while (startMarker > 0) {
             let token;
             switch (firstFound.key) {
                 case '"': case "'": case "`":
@@ -83,8 +84,8 @@ Mrbr.Utils.Parser.Tokeniser = class Tokeniser {
             };
             tokens.push(token);
             // filter initial marker points to remove points that need to be bypassed, e.g. whitespace in a text block
-            arrStarts = selfResetTokenPoints(arrStarts, token.end, source, firstFound);
-            firstFound = arrStarts[0];
+          startMarker = selfResetTokenPoints(arrStarts, token.end, startMarker);
+            firstFound = arrStarts[startMarker];
         }
         //  populate token, groups, types and level
         self.tokens = self.populateTokenProperties(tokens, source);
@@ -187,8 +188,18 @@ Mrbr.Utils.Parser.Tokeniser = class Tokeniser {
      * 
      * @returns {Object{position, types and RegExp result}[]} filtered array of markers, with discounted markers removed
      */
-    resetTokenPoints(arrStarts, startSearch) {
-        return arrStarts.filter(obj => obj.pos >= startSearch)
+    resetTokenPoints(arrStarts, startSearch, lastMarker) {
+        let retValMarker = -1;
+        let 
+        for(let markerCounter = lastMarker; markerCounter < arrStarts.length; markerCounter++){
+              if(arrStarts[markerCounter].pos >= startSearch) {
+                    retValMarker = markerCounter;
+                    break;
+                  }
+             
+            }
+       // return arrStarts.filter(obj => obj.pos >= startSearch)
+        return retValMarker;
     }
     /**
      * Create a token for an in-line comment
