@@ -14,7 +14,13 @@ Mrbr.System.Assembly = class {
     /**
      *  Currently all functions are static.
      */
-    constructor() { }
+    constructor() {
+
+    }
+    /**
+     * Load classes required by assembly function
+     */
+    static get using() { return ["Mrbr.System.ManifestEntry"] }
     /**
      * 
      * @param  {...any} args    create a namespaced object 
@@ -25,14 +31,12 @@ Mrbr.System.Assembly = class {
      *                                      {string}    argument[0] =   new namespaced object created in Window                                                   
      * @returns {object}        either a new namespaced object or the existing object
      */
-    static using = ["Mrbr.System.ManifestEntry"]
     static toObject(...args) {
         let argCount = args.length,
             target = (argCount === 1) ? window : args[0],
             nsParts = args[args.length - 1].split("."),
-            currentObject = target,
-            nsCounter = 0, partName, nsPartsLength = nsParts.length;
-        for (; nsCounter < nsPartsLength; nsCounter++) {
+            currentObject = target;
+        for (let nsCounter = 0, partName, nsPartsLength = nsParts.length; nsCounter < nsPartsLength; nsCounter++) {
             partName = nsParts[nsCounter];
             if (currentObject[partName] === undefined) {
                 currentObject[partName] = {}
@@ -54,17 +58,17 @@ Mrbr.System.Assembly = class {
      * @returns {Promise} promise for when file has loaded or existing promise of file if it is loading or has loaded
      */
     static loadFile(url) {
-        const loader = Mrbr.System.Assembly.loader;
+        let loader = Mrbr.System.Assembly.loader;
         if (loader.hasOwnProperty(url)) {
             return loader[url].promise;
         }
         let xmlHttp = new XMLHttpRequest();
         xmlHttp.open("GET", url, true);
         xmlHttp.send("");
-        let prm = new Promise((resolve, reject) => {
+        let prm = new Promise(function (resolve, reject) {
             xmlHttp.onreadystatechange = function () {
                 if (xmlHttp.readyState === 4) {
-                    if (xmlHttp.status >= 200 && xmlHttp.status < 300) {
+                    if (xmlHttp.status == 200) {
                         loader[url].result = xmlHttp.responseText;
                         resolve(xmlHttp.responseText);
                     } else {
@@ -79,19 +83,27 @@ Mrbr.System.Assembly = class {
     /**
      * Property name added to each loaded class returns full namespaced object name
      */
-    static typePropertyName = "mrbrAssemblyTypeName"
+    static get typePropertyName() { return "mrbrAssemblyTypeName" }
     /**
      * 
      * @param {string} className script source to run to add  full namespaced object name to loaded class
      */
-    static addTypeNameScript(className) { const assembly = Mrbr.System.Assembly; return `${className}.${assembly.typePropertyName} = "${className}";Object.defineProperty(${className}.prototype, '${assembly.typePropertyName}', { get: function() {return ${className}.${assembly.typePropertyName};}});` }
+    static addTypeNameScript(className) {
+        const assembly = Mrbr.System.Assembly;
+        return `
+        Object.defineProperty(${className}.prototype, 
+            '${assembly.typePropertyName}', { get: function() {return ${className}.${assembly.typePropertyName};}})
+            ${className}.${assembly.typePropertyName} = "${className}";
+            ` }
     /**
      * Default Collection of replacements of namespaces to files
      */
-    static fileReplacments = [
-        { replace: /^Mrbr\./, with: "/" },
-        { replace: /\./g, with: "/" }
-    ];
+    static get fileReplacments() {
+        return [
+            { replace: new RegExp("^Mrbr\\."), with: "/" },
+            { replace: new RegExp("\\.", "g"), with: "/" }
+        ];
+    }
     /**
      * non-operation for when function only needs to be called once, replaced on prototype and called instead
      */
@@ -112,7 +124,7 @@ Mrbr.System.Assembly = class {
     /**
      * Static object of all files loaded through Assembly
      */
-    static loader = {};
+    static get loader() { return Mrbr.System.Assembly._loader; }
     /**
      * 
      * @param {string} className    load file from namespaced object name
@@ -121,52 +133,76 @@ Mrbr.System.Assembly = class {
      * @returns {Promise}           when class and all associated files are loaded
      */
     static loadClass(className) {
-        let fnResolve,
-            fnReject,
-            classNames = [className],
-            fileName = className
+        let classNames = [className],
+            fileName = className;
         const assembly = Mrbr.System.Assembly,
             assemblyToObject = assembly.toObject,
-            fileReplacments = Mrbr.System.Assembly.fileReplacments,
-            prm = new Promise(function (resolve, reject) {
-                fnResolve = resolve;
-                fnReject = reject;
-            }),
+            fileReplacements = Mrbr.System.Assembly.fileReplacments,
             assemblyLoadClasses = assembly.loadClasses,
             assemblySetInheritance = assembly.setInheritance,
             assemblyAddClassCtor = assembly.addClassCtor;
-        fileReplacments.forEach(replacement => {
+        fileReplacements.forEach(replacement => {
             fileName = `${fileName.replace(replacement.replace, replacement.with)}`
         });
         fileName += ".js"
-        assembly.loadFile(fileName)
-            .then(async function (result) {
-                let obj = assemblyToObject(className);
-                if (!(obj instanceof Function)) {
-                    Function(`${result};${assembly.addTypeNameScript(className)}`)();
-                    obj = assemblyToObject(className);
-                }
-                let toloadCount = 0,
-                    lastToloadCount = -1,
-                    newClasses = [];
-                while (toloadCount != lastToloadCount) {
-                    lastToloadCount = toloadCount;
-                    let toload = ([].concat(obj.using ? obj.using : [], obj.inherits ? obj.inherits : [], newClasses)).distinct();
-                    toloadCount = toload.length;
-                    classNames = classNames.concat(toload).distinct()
-                    newClasses = await assemblyLoadClasses(toload);
-                    toloadCount += newClasses === undefined ? 0 : newClasses.length;
-                }
-                classNames.forEach(function (cls) {
-                    let obj = assemblyToObject(cls);
-                    if (obj instanceof Function) {
-                        assemblySetInheritance(obj.inherits, obj)
-                        assemblyAddClassCtor(assemblyToObject(cls));
+        return new Promise(function (resolve, reject) {
+            assembly.loadFile(fileName)
+                .then(function (result) {
+                    let obj = assemblyToObject(className);
+                    if (!(obj instanceof Function)) {
+                        try {
+                            Function(`${result}`)();
+                            Function(`${assembly.addTypeNameScript(className)}`)();
+                        }
+                        catch (e) {
+                            console.log(e)
+                        }
                     }
+                    obj = assemblyToObject(className);
+                    let toloadCount = 0,
+                        lastToloadCount = -1,
+                        newClasses = [];
+                    new Promise(function (resolveLoadClasses, rejectLoadClasses) {
+                        let loopLoadClasses = function () {
+                            lastToloadCount = toloadCount;
+                            let toload = ([].concat(obj.using ? obj.using : [], obj.inherits ? obj.inherits : [], newClasses)).distinct();
+                            toloadCount = toload.length;
+                            classNames = classNames.concat(toload).distinct()
+
+                            assemblyLoadClasses(toload)
+                                .then(function (result) {
+                                    newClasses = result;
+                                    var count = ((newClasses === undefined) ? 0 : newClasses.length)
+                                    toloadCount += count;
+                                    if (toloadCount != lastToloadCount) {
+                                        loopLoadClasses();
+                                    }
+                                    else {
+                                        resolveLoadClasses();
+                                    }
+                                });
+                        }
+                        loopLoadClasses();
+                    })
+                        .then(function (result1) {
+                            try {
+                                if (classNames !== undefined && classNames.length > 0) {
+                                    classNames.forEach(function (cls) {
+                                        let obj = assemblyToObject(cls);
+                                        if (obj instanceof Function) {
+                                            assemblySetInheritance(obj.inherits, obj)
+                                            assemblyAddClassCtor(obj);
+                                        }
+                                    });
+                                }
+                            }
+                            catch (e) {
+                                console.log(e);
+                            }
+                            resolve();
+                        })
                 });
-                fnResolve();
-            });
-        return prm;
+        })
     }
     /**
      * 
@@ -177,18 +213,24 @@ Mrbr.System.Assembly = class {
         const assembly = Mrbr.System.Assembly,
             fileTypes = Mrbr.System.ManifestEntry.FileTypes,
             assemblyLoadClass = assembly.loadClass,
-            assemblyLoadScript = assembly.loadScript;
+            assemblyLoadScript = assembly.loadScript,
+            assemblyLoadFile = assembly.loadFile;
         return Promise.all((Array.isArray(manifest) ? manifest : [manifest])
             .map(function (manifestEntry) {
                 switch (manifestEntry.fileType) {
                     case fileTypes.Class:
-                        return new Promise((resolve, reject) => {
+                        return new Promise(function (resolve, reject) {
                             assemblyLoadClass(manifestEntry.entryName).then(result => resolve());
                         })
                     case fileTypes.Script:
-                        return new Promise((resolve, reject) => {
+                        return new Promise(function (resolve, reject) {
                             assemblyLoadScript(manifestEntry.entryName).then(result => resolve());
                         })
+                    case fileTypes.File:
+                        return new Promise(function (resolve, reject) {
+                            assemblyLoadFile(manifestEntry.entryName).then(result => resolve());
+                        })
+
                 }
             }));
     }
@@ -199,7 +241,7 @@ Mrbr.System.Assembly = class {
      */
     static loadScript(fileName) {
         const assembly = Mrbr.System.Assembly;
-        return new Promise((resolve, reject) => {
+        return new Promise(function (resolve, reject) {
             assembly.loadFile(fileName)
                 .then(result => {
                     Function(result)();
@@ -224,20 +266,6 @@ Mrbr.System.Assembly = class {
             }));
     }
     /**
-     * List of functions to find constructor in class source code
-     * Called in sequence to find "constructor", (arguments) and {code}
-     * Used to create constructor inheritance as className_ctor for each inherited class
-     * Replaces super() for calling single base class
-     * e.g. class_1_ctor(), class_2_ctor()
-     */
-    static getConstructor = [
-        function (arg) { return (arg.token.type === arg.keyword && arg.token.value(arg.text) === "constructor") },
-        function (arg) { if (arg.token.type === arg.parseableBlock && arg.token.value(arg.text) === "(") { arg.tokenArgs.start = arg.token.start; arg.paranthesisLevel = arg.token.paranthesisLevel; return true } else { return false; } },
-        function (arg) { if (arg.token.type === arg.parseableBlock && arg.token.value(arg.text) === ")" && arg.paranthesisLevel === arg.token.paranthesisLevel) { arg.tokenArgs.end = arg.token.end; return true } else { return false; } },
-        function (arg) { if (arg.token.type === arg.parseableBlock && arg.token.value(arg.text) === "{") { arg.tokenBody.start = arg.tokens[arg.count + 1].start; arg.bodyLevel = arg.token.level; return true; } else { return false; } },
-        function (arg) { if (arg.token.type === arg.parseableBlock && arg.token.value(arg.text) === "}" && arg.bodyLevel === arg.token.level) { arg.tokenBody.end = arg.tokens[arg.count - 1].end; return true; } else { return false; } }
-    ]
-    /**
      * 
      * @param {class} classType  copies source code from Class constructor to a class' function ctor
      * If ctor already exists, created by user at design time or from previous load then it will not be created again
@@ -246,64 +274,129 @@ Mrbr.System.Assembly = class {
      */
     static addClassCtor(classType) {
         if (Object.getOwnPropertyDescriptor(classType.prototype, "ctor")) { return classType; }
-        let func,
-            tokenCounter = 0,
-            fnPos = 0;
         const mTokeniser = Mrbr.Utils.Parser.Tokeniser,
             tokenString = classType.prototype.constructor.toString(),
-            tokeniser = new mTokeniser(tokenString),
-            tokens = tokeniser.Tokenise(),
+            tokeniser = new mTokeniser(Mrbr.System.Assembly.loader["utils/parser/tokenTypes.json"].result),
+            tokens = tokeniser.tokenise(tokenString),
             Token = Mrbr.Utils.Parser.Token,
-            TokenTypes = Token.TokenTypes,
-            tokenCount = tokens.length,
-            fn = Mrbr.System.Assembly.getConstructor,
-            passObj = {
-                token: undefined,
-                parseableBlock: TokenTypes.ParseableBlock,
-                keyword: TokenTypes.Keyword,
-                text: tokenString,
-                tokenArgs: new Token(),
-                paranthesisLevel: 0,
-                tokenBody: new Token(),
-                bodyLevel: 0,
-                count: tokenCounter,
-                tokens: tokens
-            };
-        func = fn[0];
-        for (; tokenCounter < tokenCount; tokenCounter++) {
-            passObj.token = tokens[tokenCounter];
-            passObj.count = tokenCounter;
-            if (func(passObj)) {
-                func = fn[++fnPos];
-                if (fnPos === fn.length) { break; }
+            tokensLength = tokens.length,
+            TokenGroups = Token.Groups;
+        let searching = true,
+            counter = 0,
+            argumentLevel = 0,
+            argumentStart = 0,
+            argumentEnd = 0,
+            bodyStart = 0,
+            bodyEnd = 0,
+            bodyLevel = 0;
+        //  find text for start of constructor is source text
+        while (searching && counter < tokensLength) {
+            if (tokens[counter].group == TokenGroups.Keyword && tokens[counter].type === 'constructor') {
+                var v = tokens[counter].value;
+                searching = false;
+            }
+            else {
+                counter++;
             }
         }
-        if (passObj.tokenBody.end && passObj.tokenArgs.end) {
-            try {
-                var fnProperty;
-                if (passObj.tokenArgs.value(tokenString) === "()") {
-                    fnProperty = Function(`${passObj.tokenBody.value(tokenString)}`);
+        //  Find start of parenthesis for arguments
+        searching = true;
+        while (searching && counter < tokensLength) {
+            if (tokens[counter].group == TokenGroups.Block
+                && tokens[counter].value == "(") {
+                var v = tokens[counter].value;
+                argumentStart = counter;
+                argumentLevel = tokens[counter].levels.parens;
+                searching = false;
+            }
+            else {
+                counter++;
+            }
+        }
+        //  Find end of parenthesis for arguments
+        searching = true;
+        while (searching && counter < tokensLength) {
+            if (tokens[counter].group == TokenGroups.Block
+                && tokens[counter].value == ")"
+                && tokens[counter].levels.parens == argumentLevel) {
+                argumentEnd = counter;
+                searching = false;
+            }
+            else {
+                counter++;
+            }
+        }
+        // Convert Tokens to arguments list
+        let fnArgs = []
+        let fnArguments = "";
+        if (argumentEnd > argumentStart) {
+            for (let counter = argumentStart + 1; counter <= argumentEnd - 1; counter++) {
+                if (tokens[counter].value == "," && tokens[counter].levels.parens == argumentLevel) {
+                    fnArgs.push(fnArguments)
+                    fnArguments = "";
                 }
                 else {
-                    var params = passObj.tokenArgs.value(tokenString);
-                    fnProperty = Function(`${params.substring(1, params.length - 1)}`, `${passObj.tokenBody.value(tokenString)}`);
+                    fnArguments += tokens[counter].value
                 }
-                Object.defineProperty(classType.prototype, "ctor", {
-                    value: fnProperty,
-                    configurable: false,
-                    enumerable: true,
-                    writable: false,
-                    name: "ctor"
-                })
             }
-            catch (e) {
-                console.log(e);
-                console.log(passObj.tokenBody)
-                console.log(passObj.tokenArgs)
-                console.log(`${passObj.tokenArgs.value(tokenString)}`)
-                console.log(`${passObj.tokenBody.value(tokenString)}`)
-                throw e;
+            if (fnArguments.length > 0) {
+                fnArgs.push(fnArguments);
             }
+        }
+        // find start of constructor body text
+        searching = true;
+        while (searching && counter < tokensLength) {
+            if (tokens[counter].group == TokenGroups.Block
+                && tokens[counter].value == "{") {
+                bodyStart = counter;
+                bodyLevel = tokens[counter].levels.braces;
+                searching = false;
+            }
+            else {
+                counter++;
+            }
+        }
+        // find end of constructor body text
+        searching = true;
+        while (searching && counter < tokensLength) {
+            if (tokens[counter].group == TokenGroups.Block
+                && tokens[counter].value == "}"
+                && tokens[counter].levels.braces == bodyLevel) {
+                bodyEnd = counter;
+                searching = false;
+            }
+            else {
+                counter++;
+            }
+        }
+        //  Create callable version of classType's constructor.
+        //  Allows inheritance to call ctor on all inheritable classes
+        //  Allows multiple inheritance calls instead of calling super when using extends
+        try {
+            let body = "";
+            if (bodyEnd > bodyStart) {
+                for (let counter = bodyStart + 1; counter <= bodyEnd - 1; counter++) {
+                    body += tokens[counter].value
+                }
+            }
+            body = body.trim();
+            var fnProperty;
+            if (fnArgs.length == 0) {
+                fnProperty = Function(`${body}`);
+            }
+            else {
+                fnProperty = Function(fnArgs, body);
+            }
+            Object.defineProperty(classType.prototype, "ctor", {
+                value: fnProperty,
+                configurable: false,
+                enumerable: true,
+                writable: false,
+                name: "ctor"
+            })
+        }
+        catch (e) {
+            console.log(e)
         }
         return classType;
     }
@@ -316,15 +409,23 @@ Mrbr.System.Assembly = class {
     static loadClasses(classes) {
         if (classes === undefined || classes.length === 0) { return Promise.resolve(); }
         const assembly = Mrbr.System.Assembly;
-        return Promise.all((Array.isArray(classes) ? classes : [classes])
+        var prms = (Array.isArray(classes) ? classes : [classes])
             .map(function (className) {
                 return new Promise(function (resolve, reject) {
-                    assembly.loadClass(className).then(result => resolve(className));
+                    assembly
+                        .loadClass(className)
+                        .then(function (result) { resolve(className) });
                 })
-            }));
+            })
+        if (prms === undefined || prms.length === 0) {
+            return Promise.resolved([]);
+        }
+        else {
+            return Promise.all(prms);
+        }
     }
     /**
-     * 
+     * Set inheritance for target from all sources classes
      * @param {string[]} sources Array of sources to apply as base classes to target  
      * @param {class} target Target object for inheritance
      * @returns {class} Target object passed back
@@ -338,43 +439,54 @@ Mrbr.System.Assembly = class {
      * Load the required classes and usings for Mrbr.System.Assembly
      * Specific requirement for this class only
      * Additional application scripts should be run after Assembly Initialise Promise is resolved 
+     * @returns {Promise} resolves when all files are loaded
      */
     static initialised() {
         const assembly = Mrbr.System.Assembly;
+        assembly._loader = {};
         assembly.setArrayPolyFills();
-        return new Promise((resolve, reject) => {
+        return new Promise(function (resolve, reject) {
             assembly
-                .loadClass("Mrbr.Utils.Parser.Tokeniser")
-                .then(function () { return assembly.loadClass("Mrbr.System.Inheritance") })
+                .loadFile("utils/parser/tokenTypes.json")
+                .then(() => assembly.loadClass("Mrbr.Utils.Parser.Tokeniser"))
+                .then(() => assembly.loadClass("Mrbr.System.ManifestEntry"))
+                .then(() => assembly.loadClass("Mrbr.System.Inheritance"))
                 .then(function () {
                     Function(assembly.addTypeNameScript("Mrbr.System.Assembly"))();
                     return assembly.loadClasses(assembly.using)
                 })
-                .then(function () { resolve(); });
+                .then(function () {
+                    resolve();
+                })
+            // .catch(res => {
+            //     // console.log(res)
+            // });
         })
     }
+    /**
+     * When run in the Browser provides an onReady function.
+     * Once Assembly.initialised is resolved events are set for when browser DOM is "ready"
+     * @returns {Promise} DOM is "ready"
+     */
     static onReady() {
-        const assembly = Mrbr.System.Assembly;
-        let fnResolved,
-            prm = new Promise((resolve, reject) => {
-                fnResolved = resolve;
-            })
-        assembly
-            .initialised()
-            .then(() => {
-                if (document.readyState === "complete") {
-                    fnResolved("complete");
-                }
-                else {
-                    if (document.addEventListener) {
-                        document.addEventListener("DOMContentLoaded", function () { fnResolved("DOMContentLoaded") }, false);
-                        window.addEventListener("load", function () { fnResolved("load") }, false);
-                    } else {
-                        document.attachEvent("onreadystatechange", function () { fnResolved("onreadystatechange") });
-                        window.attachEvent("onload", function () { fnResolved("onload") });
+        return new Promise(function (resolve, reject) {
+            Mrbr.System.Assembly
+                .initialised()
+                .then(() => {
+                    if (document.readyState === "complete") {
+                        resolve("complete");
                     }
-                }
-            });
-        return prm;
+                    else {
+                        if (document.addEventListener) {
+                            document.addEventListener("DOMContentLoaded", function () { resolve("DOMContentLoaded") }, false);
+                            window.addEventListener("load", function () { resolve("load") }, false);
+                        } else {
+                            document.attachEvent("onreadystatechange", function () { resolve("onreadystatechange") });
+                            window.attachEvent("onload", function () { resolve("onload") });
+                            window.attachEvent("load", function () { resolve("load") });
+                        }
+                    }
+                });
+        });
     }
-}
+} 

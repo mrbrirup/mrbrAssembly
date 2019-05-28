@@ -11,9 +11,9 @@ Mrbr.System.Inheritance = class {
      * Constructors cannot be inherited and are created as className_ctor
      * e.g. Mrbr.Utils.Parser.Tokeniser's constructor is created as Mrbr_Utils_Parser_Tokeniser_ctor
      */
-    static nonInheritable = ["constructor", "mrbrAssemblyTypeName"]
+    static get nonInheritable() {return ["constructor", "mrbrAssemblyTypeName"]}
     /**
-     * 
+     * Set inheritance for target from all sources classes
      * @param {string or string[]} sources source for inheritance string is converted to string[]
      * @param {class} target class that will inherit from sources
      */
@@ -24,7 +24,7 @@ Mrbr.System.Inheritance = class {
             system = Mrbr.System,
             nonInheritable = system.Inheritance.nonInheritable,
             toObject = system.Assembly.toObject,
-            assembly = system.Assembly;
+            assembly = system.Assembly;            
         (Array.isArray(sources) ? sources : [sources])
             .forEach(async strSource => {
                 let sourcePrototype = toObject(strSource).prototype;
@@ -38,7 +38,7 @@ Mrbr.System.Inheritance = class {
                         if (!nonInheritable.includes(propertyName)) {
                             Object.defineProperty(
                                 targetPrototype,
-                                (propertyName !== "ctor" && Object.getOwnPropertyDescriptor(targetPrototype, propertyName) === undefined) ? propertyName : `${strSource.replace(/\./g, "_")}_${propertyName}`,
+                                (propertyName !== "ctor" && Object.getOwnPropertyDescriptor(targetPrototype, propertyName) === undefined) ? propertyName : `${strSource.replace( new RegExp("\\.","g"), "_")}_${propertyName}`,
                                 Object.getOwnPropertyDescriptor(sourcePrototype, propertyName)
                             );
                         }
