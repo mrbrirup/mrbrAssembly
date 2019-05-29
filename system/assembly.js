@@ -32,10 +32,10 @@ Mrbr.System.Assembly = class {
      * @returns {object}        either a new namespaced object or the existing object
      */
     static toObject(...args) {
-        let argCount = args.length,
+        const argCount = args.length,
             target = (argCount === 1) ? window : args[0],
-            nsParts = args[args.length - 1].split("."),
-            currentObject = target;
+            nsParts = args[args.length - 1].split(".");
+        let currentObject = target;
         for (let nsCounter = 0, partName, nsPartsLength = nsParts.length; nsCounter < nsPartsLength; nsCounter++) {
             partName = nsParts[nsCounter];
             if (currentObject[partName] === undefined) {
@@ -58,17 +58,17 @@ Mrbr.System.Assembly = class {
      * @returns {Promise} promise for when file has loaded or existing promise of file if it is loading or has loaded
      */
     static loadFile(url) {
-        let loader = Mrbr.System.Assembly.loader;
+        const loader = Mrbr.System.Assembly.loader;
         if (loader.hasOwnProperty(url)) {
             return loader[url].promise;
         }
-        let xmlHttp = new XMLHttpRequest();
+        const xmlHttp = new XMLHttpRequest();
         xmlHttp.open("GET", url, true);
         xmlHttp.send("");
         let prm = new Promise(function (resolve, reject) {
             xmlHttp.onreadystatechange = function () {
                 if (xmlHttp.readyState === 4) {
-                    if (xmlHttp.status == 200) {
+                    if (xmlHttp.status >= 200 && xmlHttp.status < 300) {
                         loader[url].result = xmlHttp.responseText;
                         resolve(xmlHttp.responseText);
                     } else {
@@ -119,6 +119,9 @@ Mrbr.System.Assembly = class {
                 });
             }
         }
+        Array.prototype.tokenSort = function(){
+            return this.sort(function(token1, token2) { return token1.start - token2.start;})
+        }
         Mrbr.System.Assembly.setArrayPolyFills = Mrbr.System.Assembly.nop;
     }
     /**
@@ -148,17 +151,16 @@ Mrbr.System.Assembly = class {
         return new Promise(function (resolve, reject) {
             assembly.loadFile(fileName)
                 .then(function (result) {
-                    let obj = assemblyToObject(className);
-                    if (!(obj instanceof Function)) {
+                    let obj; ;
+                    if (!((obj = assemblyToObject(className)) instanceof Function)) {
                         try {
-                            Function(`${result}`)();
-                            Function(`${assembly.addTypeNameScript(className)}`)();
+                            Function(`${result};\n${assembly.addTypeNameScript(className)};\n`)();
+                            obj = assemblyToObject(className);
                         }
                         catch (e) {
                             console.log(e)
                         }
                     }
-                    obj = assemblyToObject(className);
                     let toloadCount = 0,
                         lastToloadCount = -1,
                         newClasses = [];
@@ -168,11 +170,10 @@ Mrbr.System.Assembly = class {
                             let toload = ([].concat(obj.using ? obj.using : [], obj.inherits ? obj.inherits : [], newClasses)).distinct();
                             toloadCount = toload.length;
                             classNames = classNames.concat(toload).distinct()
-
                             assemblyLoadClasses(toload)
                                 .then(function (result) {
                                     newClasses = result;
-                                    var count = ((newClasses === undefined) ? 0 : newClasses.length)
+                                    let count = ((newClasses === undefined) ? 0 : newClasses.length)
                                     toloadCount += count;
                                     if (toloadCount != lastToloadCount) {
                                         loopLoadClasses();
@@ -187,13 +188,12 @@ Mrbr.System.Assembly = class {
                         .then(function (result1) {
                             try {
                                 if (classNames !== undefined && classNames.length > 0) {
-                                    classNames.forEach(function (cls) {
-                                        let obj = assemblyToObject(cls);
-                                        if (obj instanceof Function) {
+                                    for (let classNameCounter = 0, classNameCount = classNames.length, obj; classNameCounter < classNameCount; classNameCounter++) {                                        
+                                        if ((obj = assemblyToObject(classNames[classNameCounter])) instanceof Function) {
                                             assemblySetInheritance(obj.inherits, obj)
                                             assemblyAddClassCtor(obj);
                                         }
-                                    });
+                                    };
                                 }
                             }
                             catch (e) {
@@ -280,19 +280,24 @@ Mrbr.System.Assembly = class {
             tokens = tokeniser.tokenise(tokenString),
             Token = Mrbr.Utils.Parser.Token,
             tokensLength = tokens.length,
-            TokenGroups = Token.Groups;
-        let searching = true,
+            TokenGroups = Token.Groups,
+            fnArgs = [];
+        let fnArguments = [],
+            searching = true,
             counter = 0,
             argumentLevel = 0,
             argumentStart = 0,
             argumentEnd = 0,
             bodyStart = 0,
             bodyEnd = 0,
-            bodyLevel = 0;
+            bodyLevel = 0,
+            currToken,
+            body = "",
+            arrBody;
         //  find text for start of constructor is source text
         while (searching && counter < tokensLength) {
-            if (tokens[counter].group == TokenGroups.Keyword && tokens[counter].type === 'constructor') {
-                var v = tokens[counter].value;
+            currToken = tokens[counter]
+            if (currToken.group === TokenGroups.Keyword && currToken.type === 'constructor') {
                 searching = false;
             }
             else {
@@ -302,11 +307,11 @@ Mrbr.System.Assembly = class {
         //  Find start of parenthesis for arguments
         searching = true;
         while (searching && counter < tokensLength) {
-            if (tokens[counter].group == TokenGroups.Block
-                && tokens[counter].value == "(") {
-                var v = tokens[counter].value;
+            currToken = tokens[counter];
+            if (currToken.group === TokenGroups.Block
+                && currToken.value === "(") {
                 argumentStart = counter;
-                argumentLevel = tokens[counter].levels.parens;
+                argumentLevel = currToken.levels.parens;
                 searching = false;
             }
             else {
@@ -316,9 +321,10 @@ Mrbr.System.Assembly = class {
         //  Find end of parenthesis for arguments
         searching = true;
         while (searching && counter < tokensLength) {
-            if (tokens[counter].group == TokenGroups.Block
-                && tokens[counter].value == ")"
-                && tokens[counter].levels.parens == argumentLevel) {
+            currToken = tokens[counter];
+            if (currToken.group === TokenGroups.Block
+                && currToken.value === ")"
+                && currToken.levels.parens === argumentLevel) {
                 argumentEnd = counter;
                 searching = false;
             }
@@ -327,29 +333,29 @@ Mrbr.System.Assembly = class {
             }
         }
         // Convert Tokens to arguments list
-        let fnArgs = []
-        let fnArguments = "";
         if (argumentEnd > argumentStart) {
             for (let counter = argumentStart + 1; counter <= argumentEnd - 1; counter++) {
-                if (tokens[counter].value == "," && tokens[counter].levels.parens == argumentLevel) {
-                    fnArgs.push(fnArguments)
-                    fnArguments = "";
+                currToken = tokens[counter]
+                if (currToken.value === "," && currToken.levels.parens === argumentLevel) {
+                    fnArgs.push(fnArguments.join(""))
+                    fnArguments = [];
                 }
                 else {
-                    fnArguments += tokens[counter].value
+                    fnArguments.push(currToken.value)
                 }
             }
             if (fnArguments.length > 0) {
-                fnArgs.push(fnArguments);
+                fnArgs.push(fnArguments.join(""))
             }
         }
         // find start of constructor body text
         searching = true;
         while (searching && counter < tokensLength) {
-            if (tokens[counter].group == TokenGroups.Block
-                && tokens[counter].value == "{") {
+            currToken = tokens[counter];
+            if (currToken.group === TokenGroups.Block
+                && currToken.value === "{") {
                 bodyStart = counter;
-                bodyLevel = tokens[counter].levels.braces;
+                bodyLevel = currToken.levels.braces;
                 searching = false;
             }
             else {
@@ -359,9 +365,10 @@ Mrbr.System.Assembly = class {
         // find end of constructor body text
         searching = true;
         while (searching && counter < tokensLength) {
-            if (tokens[counter].group == TokenGroups.Block
-                && tokens[counter].value == "}"
-                && tokens[counter].levels.braces == bodyLevel) {
+            currToken = tokens[counter];
+            if (currToken.group === TokenGroups.Block
+                && currToken.value === "}"
+                && currToken.levels.braces === bodyLevel) {
                 bodyEnd = counter;
                 searching = false;
             }
@@ -373,22 +380,14 @@ Mrbr.System.Assembly = class {
         //  Allows inheritance to call ctor on all inheritable classes
         //  Allows multiple inheritance calls instead of calling super when using extends
         try {
-            let body = "";
             if (bodyEnd > bodyStart) {
-                for (let counter = bodyStart + 1; counter <= bodyEnd - 1; counter++) {
-                    body += tokens[counter].value
+                arrBody = [bodyStart+1, bodyEnd-1]
+                for (let counter = bodyStart + 1 ; counter <= bodyEnd - 1; counter++) {
+                    arrBody[counter - bodyStart + 1] = tokens[counter].value
                 }
             }
-            body = body.trim();
-            var fnProperty;
-            if (fnArgs.length == 0) {
-                fnProperty = Function(`${body}`);
-            }
-            else {
-                fnProperty = Function(fnArgs, body);
-            }
             Object.defineProperty(classType.prototype, "ctor", {
-                value: fnProperty,
+                value: fnArgs.length === 0 ? Function(`${arrBody.join("").trim()}`) : Function(fnArgs, arrBody.join("").trim()),
                 configurable: false,
                 enumerable: true,
                 writable: false,
@@ -409,7 +408,7 @@ Mrbr.System.Assembly = class {
     static loadClasses(classes) {
         if (classes === undefined || classes.length === 0) { return Promise.resolve(); }
         const assembly = Mrbr.System.Assembly;
-        var prms = (Array.isArray(classes) ? classes : [classes])
+        let loadClassesPromises = (Array.isArray(classes) ? classes : [classes])
             .map(function (className) {
                 return new Promise(function (resolve, reject) {
                     assembly
@@ -417,11 +416,11 @@ Mrbr.System.Assembly = class {
                         .then(function (result) { resolve(className) });
                 })
             })
-        if (prms === undefined || prms.length === 0) {
+        if (loadClassesPromises === undefined || loadClassesPromises.length === 0) {
             return Promise.resolved([]);
         }
         else {
-            return Promise.all(prms);
+            return Promise.all(loadClassesPromises);
         }
     }
     /**
@@ -469,7 +468,21 @@ Mrbr.System.Assembly = class {
      * @returns {Promise} DOM is "ready"
      */
     static onReady() {
+        let fnResolve;
+        let fnReady = function () {
+            if (document.removeEventListener) {
+                document.removeEventListener("DOMContentLoaded", fnReady);
+                window.removeEventListener("load", fnReady);
+            } else {
+                document.detachEvent("onreadystatechange", fnReady);
+                window.detachEvent("onload", fnReady);
+                window.detachEvent("load", fnReady);
+            }
+            fnResolve()
+        }
+        let handlers = [];
         return new Promise(function (resolve, reject) {
+            fnResolve = resolve;
             Mrbr.System.Assembly
                 .initialised()
                 .then(() => {
@@ -478,12 +491,12 @@ Mrbr.System.Assembly = class {
                     }
                     else {
                         if (document.addEventListener) {
-                            document.addEventListener("DOMContentLoaded", function () { resolve("DOMContentLoaded") }, false);
-                            window.addEventListener("load", function () { resolve("load") }, false);
+                            document.addEventListener("DOMContentLoaded", fnReady);
+                            window.addEventListener("load", fnReady);
                         } else {
-                            document.attachEvent("onreadystatechange", function () { resolve("onreadystatechange") });
-                            window.attachEvent("onload", function () { resolve("onload") });
-                            window.attachEvent("load", function () { resolve("load") });
+                            document.attachEvent("onreadystatechange", fnReady);
+                            window.attachEvent("onload", fnReady);
+                            window.attachEvent("load", fnReady);
                         }
                     }
                 });

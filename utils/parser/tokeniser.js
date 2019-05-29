@@ -18,9 +18,9 @@ Mrbr.Utils.Parser.Tokeniser = class Tokeniser {
     /**
      * 
      * @param {string} source Source text to be Tokenised
-     *
+     */
     tokenise(source) {
-        let self = this,
+        const self = this,
             selfTokeniseQuotes = self.tokeniseQuotes,
             selfTokeniseBlockComment = self.tokeniseBlockComment,
             selfTokeniseLineComment = self.tokeniseLineComment,
@@ -28,7 +28,7 @@ Mrbr.Utils.Parser.Tokeniser = class Tokeniser {
             sourceLength = source.length,
             parserToken = Mrbr.Utils.Parser.Token,
             parserTokenGroups = parserToken.Groups,
-            arrRxs = [
+            markerRegexes = [
                 { group: parserTokenGroups.Whitespace, name: "whitespace", rx: /( |\t|\f|\r|\n)\1*/g },
                 { group: parserTokenGroups.Quote, name: "quotes", rx: /("|'|`)+/g },
                 { group: parserTokenGroups.Comment, name: "comments", rx: /([/]{2}|[/]\*|\*\/)/g },
@@ -43,53 +43,53 @@ Mrbr.Utils.Parser.Tokeniser = class Tokeniser {
                 { group: parserTokenGroups.Whitespace, name: "crlf", rx: /(\r\n)\1*/g },
                 { group: parserTokenGroups.Block, name: "blocks", rx: /([{}[\]()]{1})/g },
                 { group: parserTokenGroups.Operator, name: "operators", rx: /(>>>=|>>=|<<=|===|!==|[.]{3}|>{3}|<<|!=|<=|>>|>=|[+]{2}|--|==|=>|[|]=|\^=|&=|\+=|-=|\*=|\/=|%=|\|\||&&|;|,|\?|:|\^|&|=|<|>|\+|-|\*|\/|%|!|~|\.)/g }
-            ],
-            arrStarts = [],
-            tokens = [], firstFound;
+            ];
+        let startMarker = 0,
+            markerStartPoints = [],
+            currentMarker;
         // loop through all tokens regular expressions and create initial marker points
-        arrRxs.forEach(rxTypes => {
-            rxTypes.rx.lastIndex = 0;
-            let match;
-            while ((match = rxTypes.rx.exec(source)) !== null) {
-                if (match.index === rxTypes.rx.lastIndex) {
-                    rxTypes.rx.lastIndex++;
+        for (let markerRegexesCounter = 0, markerRegexesCount = markerRegexes.length, markerRegex, match, pos; markerRegexesCounter < markerRegexesCount; markerRegexesCounter++) {
+            markerRegex = markerRegexes[markerRegexesCounter]
+            markerRegex.rx.lastIndex = 0;
+            while ((match = markerRegex.rx.exec(source)) !== null) {
+                if (match.index === markerRegex.rx.lastIndex) {
+                    markerRegex.rx.lastIndex++;
                 }
-                let pos = match.index;
-                arrStarts.push({ key: match[0], pos: pos, sort: pos * sourceLength - match[0].length, type: "rx", rxResult: match, rxGroupName: rxTypes.group, rxTypeName: rxTypes.name, lastIndex: rxTypes.rx.lastIndex, tokenClass: parserToken })
+                if (match.index >= 0) {
+                    pos = match.index;
+                    markerStartPoints.push({ key: match[0], pos: pos, sort: pos * sourceLength - match[0].length, type: "rx", rxResult: match, rxGroupName: markerRegex.group, rxTypeName: markerRegex.name, lastIndex: markerRegex.rx.lastIndex, tokenClass: parserToken })
+                }
             }
-        });
-        let startMarker = 0;
-        arrStarts = arrStarts
-            .filter(obj => obj.pos >= 0)    // filter for those marker past the start point
-            .sort((obj1, obj2) => (obj1.sort - obj2.sort)); //  sort by sort property. Sort property is marker position * source text length - marker length.
+        };
+        markerStartPoints = markerStartPoints.sort((marker1, marker2) => (marker1.sort - marker2.sort)); //  sort by sort property. Sort property is marker position * source text length - marker length.
         //  Causes longer token to be processed first >>>= before >>= before >=
         //  Shorter tokens are deleted before the next cycle as they share a start point and this has been passed
-        firstFound = arrStarts[startMarker];
+        currentMarker = markerStartPoints[startMarker];
         // cycle through initial markers, but only work on the first one
-        while (startMarker > 0) {
-            let token;
-            switch (firstFound.key) {
+        let tokenCounter = 0,
+            tokens = [markerStartPoints.length];
+        while (startMarker >= 0) {
+            switch (currentMarker.key) {
                 case '"': case "'": case "`":
-                    token = selfTokeniseQuotes(firstFound, source, tokens);
+                    tokens[tokenCounter] = selfTokeniseQuotes(currentMarker, source, tokens);
                     break;
                 case "/*":
-                    token = selfTokeniseBlockComment(firstFound, source, arrStarts)
+                    tokens[tokenCounter] = selfTokeniseBlockComment(currentMarker, markerStartPoints, startMarker);
                     break;
                 case "//":
-                    token = selfTokeniseLineComment(firstFound, source);
+                    tokens[tokenCounter] = selfTokeniseLineComment(currentMarker, markerStartPoints, startMarker);
                     break;
                 default:    //  Tokenising markers that do not require addition processing, e.g. Operators and Numbers
-                    token = new firstFound.tokenClass(firstFound.rxResult.index, firstFound.rxResult[0].length, firstFound.rxGroupName, firstFound.rxTypeName);
+                    tokens[tokenCounter] = new currentMarker.tokenClass(currentMarker.rxResult.index, currentMarker.rxResult[0].length, currentMarker.rxGroupName, currentMarker.rxTypeName);
                     break;
             };
-            tokens.push(token);
+            tokenCounter++;
             // filter initial marker points to remove points that need to be bypassed, e.g. whitespace in a text block
-          startMarker = selfResetTokenPoints(arrStarts, token.end, startMarker);
-            firstFound = arrStarts[startMarker];
+            startMarker = selfResetTokenPoints(markerStartPoints, tokens[tokens.length - 1].end, startMarker);
+            currentMarker = markerStartPoints[startMarker];
         }
         //  populate token, groups, types and level
-        self.tokens = self.populateTokenProperties(tokens, source);
-        return self.tokens;
+        return self.tokens = self.populateTokenProperties(tokens.slice(1, tokenCounter), source);
     }
     /**
      * Fill gaps in tokens.
@@ -98,7 +98,7 @@ Mrbr.Utils.Parser.Tokeniser = class Tokeniser {
      * @param {string} source Source text being tokenised
      */
     fillTokensGaps(tokens, source) {
-        let tokensLength = tokens.length,
+        const tokensLength = tokens.length,
             parserToken = Mrbr.Utils.Parser.Token,
             parserTokenGroups = parserToken.Groups;
         if (tokens[0].start > 0) {
@@ -121,21 +121,22 @@ Mrbr.Utils.Parser.Tokeniser = class Tokeniser {
      * @returns {Tokens[]} Tokenised representation of source string
      */
     populateTokenProperties(tokens, source) {
-        tokens = tokens.sort((token1, token2) => token1.start - token2.start);
-        let self = this,
+        const self = this,
             rxIdentifier = new RegExp(self.identifier, "gim"),
             selfWhitespace = self.whitespace,
             selfBlocks = self.blocks,
             selfOperators = self.operators,
             selfKeywords = self.keywords,
             parserToken = Mrbr.Utils.Parser.Token,
-            parserTokenGroups = parserToken.Groups,
-            brackets = 0,
+            parserTokenGroups = parserToken.Groups;
+        let brackets = 0,
             braces = 0,
             parens = 0;
+        tokens = tokens.tokenSort();
         self.fillTokensGaps(tokens, source);
-        tokens = tokens.sort((token1, token2) => token1.start - token2.start);
-        tokens.forEach(token => {
+        tokens = tokens.tokenSort();
+        for (let tokenCounter = 0, tokenCount = tokens.length, token; tokenCounter < tokenCount; tokenCounter++) {
+            token = tokens[tokenCounter];
             token.source = source;
             let tokenValue = token.value,
                 tokenLevels = token.levels;
@@ -178,77 +179,88 @@ Mrbr.Utils.Parser.Tokeniser = class Tokeniser {
                 tokenLevels.braces = braces;
                 tokenLevels.parens = parens;
             }
-        });
+        };
         return tokens;
     }
     /**
      * 
-     * @param {Object{position, types and RegExp result}[]} arrStarts Array of markers for start of candidate positions for Tokens 
+     * @param {Object{position, types and RegExp result}[]} markerStartPoints Array of markers for start of candidate positions for Tokens 
      * @param {number} startSearch Start position for filtering out markers that have been passed
      * 
      * @returns {Object{position, types and RegExp result}[]} filtered array of markers, with discounted markers removed
      */
-    resetTokenPoints(arrStarts, startSearch, lastMarker) {
-        let retValMarker = -1;
-        let 
-        for(let markerCounter = lastMarker; markerCounter < arrStarts.length; markerCounter++){
-              if(arrStarts[markerCounter].pos >= startSearch) {
-                    retValMarker = markerCounter;
-                    break;
-                  }
-             
+    resetTokenPoints(markerStartPoints, startSearch, lastMarker) {
+        let retValMarker = -1,
+            markerCounter = lastMarker;
+        for (; markerCounter < markerStartPoints.length; markerCounter++) {
+            if (markerStartPoints[markerCounter].pos >= startSearch) {
+                retValMarker = markerCounter;
+                break;
             }
-       // return arrStarts.filter(obj => obj.pos >= startSearch)
+        }
+        if (markerCounter >= markerStartPoints.length) { return retValMarker; }
+        startSearch = markerStartPoints[markerCounter].pos
+        for (; markerCounter < markerStartPoints.length; markerCounter++) {
+            if (markerStartPoints[markerCounter].pos === startSearch) {
+                retValMarker = markerCounter;
+            }
+            else {
+                break;
+            }
+        }
         return retValMarker;
     }
     /**
      * Create a token for an in-line comment
-     * @param {Object{position, types and RegExp result}} firstFound Marker identified as start of line comment
+     * @param {Object{position, types and RegExp result}} currentMarker Marker identified as start of line comment
      * @param {string} source Source text being processed
      * 
      * @returns {Token} Tokenised in-line comment
      */
-    tokeniseLineComment(firstFound, source) {
-        let startSearch = firstFound.pos,
-            idx = 0,
-            tk = firstFound.tokenClass;
-        idx = source.indexOf("\r\n", startSearch)
-        if (idx > 0) { return new tk(startSearch, idx + 2 - startSearch, tk.Groups.Comment); }
-        idx = source.indexOf("\n", startSearch);
-        if (idx > 0) { return new tk(startSearch, idx + 1 - startSearch, tk.Groups.Comment); }
-        return new tk(startSearch, source.length - startSearch, tk.Groups.Comment)
-    }
-    /**
-     * 
-     * @param {Object{position, types and RegExp result}} firstFound Marker identified as start of block comment
-     * @param {string} source source text being tokenised
-     * @param {Object{position, types and RegExp result}} arrStarts list of Markers to find end of block marker
-     * 
-     * @returns {Token} Tokenised block comment
-     */
-    tokeniseBlockComment(firstFound, source, arrStarts) {
-        let start = firstFound.pos,
-            end = source.length;
-        for (let arrCounter = 1, arrCount = arrStarts.length; arrCounter < arrCount; arrCounter++) {
-            let endBlockComment = arrStarts[arrCounter];
-            if (endBlockComment.rxResult[0] == "*/") {
-                end = endBlockComment.pos + endBlockComment.rxResult[0].length - start;
+    tokeniseLineComment(currentMarker, source, markerStartPoints, startMarker) {
+        let end = source.length;
+        for (let arrCounter = startMarker + 1, arrCount = markerStartPoints.length; arrCounter < arrCount; arrCounter++) {
+            let inlineComment = markerStartPoints[arrCounter],
+                inlineCommentRxResult = inlineComment.rxResult[0]
+            if (inlineCommentRxResult === "\r\n" || inlineCommentRxResult === "\n") {
+                end = inlineComment.pos + inlineComment.rxResult[0].length - start;
                 break;
             }
         }
-        return new firstFound.tokenClass(start, end, firstFound.tokenClass.Groups.Comment, "block");
+        return new currentMarker.tokenClass(start, end, currentMarker.tokenClass.Groups.Comment, "in-line");
     }
     /**
      * 
-     * @param {Object{position, types and RegExp result}} firstFound Marker identified as start of block comment
+     * @param {Object{position, types and RegExp result}} currentMarker Marker identified as start of block comment
+     * @param {string} source source text being tokenised
+     * @param {Object{position, types and RegExp result}} markerStartPoints list of Markers to find end of block marker
+     * 
+     * @returns {Token} Tokenised block comment
+     */
+    tokeniseBlockComment(currentMarker, source, markerStartPoints, startMarker) {
+        const start = currentMarker.pos;
+        let end = source.length;
+        for (let arrCounter = startMarker + 1, arrCount = markerStartPoints.length; arrCounter < arrCount; arrCounter++) {
+            let endBlockComment = markerStartPoints[arrCounter],
+                endBlockCommentrxResult = endBlockComment.rxResult[0];
+            if (endBlockCommentrxResult === "*/") {
+                end = endBlockComment.pos + endBlockCommentrxResult.length - start;
+                break;
+            }
+        }
+        return new currentMarker.tokenClass(start, end, currentMarker.tokenClass.Groups.Comment, "block");
+    }
+    /**
+     * 
+     * @param {Object{position, types and RegExp result}} currentMarker Marker identified as start of block comment
      * @param {string} source Source text being tokenised
      * 
      * @returns {Token} Tokenised quoted text
      */
-    tokeniseQuotes(firstFound, source) {
-        let startSearch = firstFound.pos,
-            searching = true,
-            findChars = firstFound.key;
+    tokeniseQuotes(currentMarker, source) {
+        const findChars = currentMarker.key;
+        let startSearch = currentMarker.pos,
+            searching = true;
         startSearch++;
         while (searching) {
             let chr = source.substr(startSearch, 1);
@@ -265,6 +277,6 @@ Mrbr.Utils.Parser.Tokeniser = class Tokeniser {
                 continue;
             }
         }
-        return new firstFound.tokenClass(firstFound.pos, startSearch - firstFound.pos + findChars.length, firstFound.tokenClass.Groups.Quotes);
+        return new currentMarker.tokenClass(currentMarker.pos, startSearch - currentMarker.pos + findChars.length, currentMarker.tokenClass.Groups.Quotes);
     }
 }
