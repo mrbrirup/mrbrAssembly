@@ -1,7 +1,7 @@
 /**
  * Inheritance functions for Classes
  */
-Mrbr.System.Inheritance = class {
+class {
     /**
      * Currently not used, static classes
      */

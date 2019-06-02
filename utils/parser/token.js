@@ -3,7 +3,7 @@
  * Holds position of token start and end in source text, but does not contain the text fragment
  * Source is pointer to source text and is requied to obtain text fromgment from source
  */
-Mrbr.Utils.Parser.Token = class {
+class {
     /**
      * @returns {number} integer for unique token id, multiple tokenisers can created at a time. The ids are unique across all tokenisers
      *  

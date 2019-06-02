@@ -2,7 +2,7 @@
  * Manifest entry when loading files
  * Files are processed differently for each type
  */
-Mrbr.System.ManifestEntry = class {
+class {
     /**
      * 
      * @param {string} fileType One of ManifestEntry.FileTypes

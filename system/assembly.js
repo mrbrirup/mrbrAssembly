@@ -15,7 +15,10 @@ Mrbr.System.Assembly = class {
      *  Currently all functions are static.
      */
     constructor() {
-
+        Mrbr.System.Assembly._fileReplacements = [
+            { replace: new RegExp("^Mrbr\\."), with: "/" },
+            { replace: new RegExp("\\.", "g"), with: "/" }
+        ];
     }
     /**
      * Load classes required by assembly function
@@ -98,11 +101,18 @@ Mrbr.System.Assembly = class {
     /**
      * Default Collection of replacements of namespaces to files
      */
-    static get fileReplacments() {
-        return [
-            { replace: new RegExp("^Mrbr\\."), with: "/" },
-            { replace: new RegExp("\\.", "g"), with: "/" }
-        ];
+    static get fileReplacements() {
+        return Mrbr.System.Assembly._fileReplacements;
+    }
+    static set fileReplacements(value) {
+        Mrbr.System.Assembly._fileReplacements = value;
+    }
+    static resolveNamespaceToFile(className) {
+        let fileName = className;
+        Mrbr.System.Assembly._fileReplacements.forEach(replacement => {
+            fileName = `${fileName.replace(replacement.replace, replacement.with)}`
+        });
+        return fileName;
     }
     /**
      * non-operation for when function only needs to be called once, replaced on prototype and called instead
@@ -119,8 +129,8 @@ Mrbr.System.Assembly = class {
                 });
             }
         }
-        Array.prototype.tokenSort = function(){
-            return this.sort(function(token1, token2) { return token1.start - token2.start;})
+        Array.prototype.tokenSort = function () {
+            return this.sort(function (token1, token2) { return token1.start - token2.start; })
         }
         Mrbr.System.Assembly.setArrayPolyFills = Mrbr.System.Assembly.nop;
     }
@@ -140,55 +150,77 @@ Mrbr.System.Assembly = class {
             fileName = className;
         const assembly = Mrbr.System.Assembly,
             assemblyToObject = assembly.toObject,
-            fileReplacements = Mrbr.System.Assembly.fileReplacments,
+            fileReplacements = Mrbr.System.Assembly.fileReplacements,
+            makeFileReplacements = Mrbr.System.Assembly.resolveNamespaceToFile,
+
             assemblyLoadClasses = assembly.loadClasses,
             assemblySetInheritance = assembly.setInheritance,
-            assemblyAddClassCtor = assembly.addClassCtor;
-        fileReplacements.forEach(replacement => {
-            fileName = `${fileName.replace(replacement.replace, replacement.with)}`
-        });
+            assemblyAddClassCtor = assembly.addClassCtor,
+            assemblyLoadManifest = assembly.loadManifest;
+        fileName = makeFileReplacements(className)
         fileName += ".js"
         return new Promise(function (resolve, reject) {
             assembly.loadFile(fileName)
                 .then(function (result) {
-                    let obj; ;
+                    let obj;
                     if (!((obj = assemblyToObject(className)) instanceof Function)) {
                         try {
-                            Function(`${result};\n${assembly.addTypeNameScript(className)};\n`)();
+                            Function(`${className} = ${result};\n${assembly.addTypeNameScript(className)};\n`)();
+                            //var fn = new Function(`${className} = ${result};\n${assembly.addTypeNameScript(className)};\n`);
+                            //fn.call(window)
                             obj = assemblyToObject(className);
                         }
                         catch (e) {
                             console.log(e)
                         }
                     }
+                })
+                .then(function () {
+                    return new Promise(function (resolveLoadingManifest, rejectLoadingManifest) {
+                        let obj = assemblyToObject(className),
+                            loadManifest = obj.manifest;
+                        if (loadManifest === undefined || loadManifest === null || loadManifest.length === 0) {
+                            resolveLoadingManifest();
+                        }
+                        else {
+                            assemblyLoadManifest(loadManifest)
+                                .then(function () {
+                                    resolveLoadingManifest()
+                                });
+                        }
+                    })
+                })
+                .then(function () {
                     let toloadCount = 0,
                         lastToloadCount = -1,
                         newClasses = [];
                     new Promise(function (resolveLoadClasses, rejectLoadClasses) {
-                        let loopLoadClasses = function () {
-                            lastToloadCount = toloadCount;
-                            let toload = ([].concat(obj.using ? obj.using : [], obj.inherits ? obj.inherits : [], newClasses)).distinct();
-                            toloadCount = toload.length;
-                            classNames = classNames.concat(toload).distinct()
-                            assemblyLoadClasses(toload)
-                                .then(function (result) {
-                                    newClasses = result;
-                                    let count = ((newClasses === undefined) ? 0 : newClasses.length)
-                                    toloadCount += count;
-                                    if (toloadCount != lastToloadCount) {
-                                        loopLoadClasses();
-                                    }
-                                    else {
-                                        resolveLoadClasses();
-                                    }
-                                });
-                        }
+                        let obj = assemblyToObject(className),
+                            loopLoadClasses = function () {
+                                lastToloadCount = toloadCount;
+                                let toload = ([].concat(obj.using ? obj.using : [], obj.inherits ? obj.inherits : [], newClasses)).distinct();
+                                toloadCount = toload.length;
+                                classNames = classNames.concat(toload).distinct()
+                                assemblyLoadClasses(toload)
+                                    .then(function (result) {
+                                        newClasses = result;
+                                        let count = ((newClasses === undefined) ? 0 : newClasses.length)
+                                        toloadCount += count;
+                                        if (toloadCount != lastToloadCount) {
+                                            loopLoadClasses();
+                                        }
+                                        else {
+                                            resolveLoadClasses();
+                                        }
+                                    });
+                            }
                         loopLoadClasses();
                     })
+                        //})
                         .then(function (result1) {
                             try {
                                 if (classNames !== undefined && classNames.length > 0) {
-                                    for (let classNameCounter = 0, classNameCount = classNames.length, obj; classNameCounter < classNameCount; classNameCounter++) {                                        
+                                    for (let classNameCounter = 0, classNameCount = classNames.length, obj; classNameCounter < classNameCount; classNameCounter++) {
                                         if ((obj = assemblyToObject(classNames[classNameCounter])) instanceof Function) {
                                             assemblySetInheritance(obj.inherits, obj)
                                             assemblyAddClassCtor(obj);
@@ -244,7 +276,10 @@ Mrbr.System.Assembly = class {
         return new Promise(function (resolve, reject) {
             assembly.loadFile(fileName)
                 .then(result => {
-                    Function(result)();
+                    var scr = document.createElement("script");
+                    scr.id = fileName;
+                    scr.text = result;
+                    document.head.appendChild(scr);
                     resolve();
                 });
         });
@@ -276,7 +311,7 @@ Mrbr.System.Assembly = class {
         if (Object.getOwnPropertyDescriptor(classType.prototype, "ctor")) { return classType; }
         const mTokeniser = Mrbr.Utils.Parser.Tokeniser,
             tokenString = classType.prototype.constructor.toString(),
-            tokeniser = new mTokeniser(Mrbr.System.Assembly.loader["utils/parser/tokenTypes.json"].result),
+            tokeniser = new mTokeniser(Mrbr.System.Assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Utils.Parser.tokenTypes") + ".json"].result),
             tokens = tokeniser.tokenise(tokenString),
             Token = Mrbr.Utils.Parser.Token,
             tokensLength = tokens.length,
@@ -381,18 +416,42 @@ Mrbr.System.Assembly = class {
         //  Allows multiple inheritance calls instead of calling super when using extends
         try {
             if (bodyEnd > bodyStart) {
-                arrBody = [bodyStart+1, bodyEnd-1]
-                for (let counter = bodyStart + 1 ; counter <= bodyEnd - 1; counter++) {
-                    arrBody[counter - bodyStart + 1] = tokens[counter].value
+                arrBody = [];//bodyStart + 1 - bodyEnd - 1]
+                for (let counter = bodyStart + 1; counter <= bodyEnd - 1; counter++) {
+                    //arrBody[counter - bodyStart + 1] = tokens[counter].value
+                    arrBody.push(tokens[counter].value)
                 }
+                Object.defineProperty(classType.prototype, "ctor", {
+                    value: fnArgs.length === 0 ? Function(`\n${arrBody.join("").trim()}\n`) : Function(fnArgs, `\n${arrBody.join("").trim()}\n`),
+                    configurable: false,
+                    enumerable: true,
+                    writable: false,
+                    name: "ctor"
+                })
             }
-            Object.defineProperty(classType.prototype, "ctor", {
-                value: fnArgs.length === 0 ? Function(`${arrBody.join("").trim()}`) : Function(fnArgs, arrBody.join("").trim()),
-                configurable: false,
-                enumerable: true,
-                writable: false,
-                name: "ctor"
-            })
+            if (Object.getOwnPropertyDescriptor(classType.prototype, "base") === undefined) {
+                Object.defineProperty(classType.prototype, "base", {
+                    value: function (...args) {
+                        args[0].called = args[0].called || [];
+                        const self = this,
+                            called = args[0].called,
+                            keys = Object.keys(self.constructor.prototype),
+                            keysCount = keys.length;
+                        for (let keyCounter = 0; keyCounter < keysCount; keyCounter++) {
+                            let property = keys[keyCounter];
+                            if (called.includes(property) || !property.endsWith("_ctor")) {
+                                continue;
+                            }
+                            called.push(property);
+                            self[property](...args);
+                        }
+                    },
+                    configurable: false,
+                    enumerable: true,
+                    writable: false,
+                    name: "base"
+                })
+            }
         }
         catch (e) {
             console.log(e)
@@ -440,13 +499,18 @@ Mrbr.System.Assembly = class {
      * Additional application scripts should be run after Assembly Initialise Promise is resolved 
      * @returns {Promise} resolves when all files are loaded
      */
-    static initialised() {
+    static initialised(config) {
         const assembly = Mrbr.System.Assembly;
+        if (config !== undefined && config !== null) {
+            if (config.assemblyResolvers !== undefined && config.assemblyResolvers !== null) {
+                assembly.fileReplacements = config.assemblyResolvers;
+            }
+        }
         assembly._loader = {};
         assembly.setArrayPolyFills();
         return new Promise(function (resolve, reject) {
             assembly
-                .loadFile("utils/parser/tokenTypes.json")
+                .loadFile(Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Utils.Parser.tokenTypes") + ".json")
                 .then(() => assembly.loadClass("Mrbr.Utils.Parser.Tokeniser"))
                 .then(() => assembly.loadClass("Mrbr.System.ManifestEntry"))
                 .then(() => assembly.loadClass("Mrbr.System.Inheritance"))
@@ -467,7 +531,7 @@ Mrbr.System.Assembly = class {
      * Once Assembly.initialised is resolved events are set for when browser DOM is "ready"
      * @returns {Promise} DOM is "ready"
      */
-    static onReady() {
+    static onReady(config) {
         let fnResolve;
         let fnReady = function () {
             if (document.removeEventListener) {
@@ -484,7 +548,7 @@ Mrbr.System.Assembly = class {
         return new Promise(function (resolve, reject) {
             fnResolve = resolve;
             Mrbr.System.Assembly
-                .initialised()
+                .initialised(config)
                 .then(() => {
                     if (document.readyState === "complete") {
                         resolve("complete");
