@@ -1,6 +1,7 @@
 class {
     constructor(...args) {
-        let size = args[0].size || [0, 0, 32, 24];
+        
+        let size = (args && args.length> 0 && args[0].size) ? args[0].size : [0, 0, 32, 24];
         this.x = size[0];
         this.y = size[1];
         this.width = size[2];

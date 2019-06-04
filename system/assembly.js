@@ -216,7 +216,6 @@ Mrbr.System.Assembly = class {
                             }
                         loopLoadClasses();
                     })
-                        //})
                         .then(function (result1) {
                             try {
                                 if (classNames !== undefined && classNames.length > 0) {
