@@ -307,7 +307,8 @@ Mrbr.System.Assembly = class {
      * @returns {class} returns passed in classType
      */
     static addClassCtor(classType) {
-        if (Object.getOwnPropertyDescriptor(classType.prototype, "ctor")) { return classType; }
+
+        if (Object.getOwnPropertyDescriptor(classType.prototype, "ctor") !== undefined) { return classType; }
         const mTokeniser = Mrbr.Utils.Parser.Tokeniser,
             tokenString = classType.prototype.constructor.toString(),
             tokeniser = new mTokeniser(Mrbr.System.Assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Utils.Parser.tokenTypes") + ".json"].result),
@@ -410,35 +411,41 @@ Mrbr.System.Assembly = class {
                 counter++;
             }
         }
+
         //  Create callable version of classType's constructor.
         //  Allows inheritance to call ctor on all inheritable classes
         //  Allows multiple inheritance calls instead of calling super when using extends
         try {
-            if (bodyEnd > bodyStart) {
+            if (bodyEnd > bodyStart && (Object.getOwnPropertyDescriptor(classType.prototype, "ctor") === undefined)) {
                 arrBody = [];//bodyStart + 1 - bodyEnd - 1]
                 for (let counter = bodyStart + 1; counter <= bodyEnd - 1; counter++) {
                     //arrBody[counter - bodyStart + 1] = tokens[counter].value
                     arrBody.push(tokens[counter].value)
                 }
                 Object.defineProperty(classType.prototype, "ctor", {
-                    value: fnArgs.length === 0 ? Function(`\n${arrBody.join("").trim()}\n`) : Function(fnArgs, `\n${arrBody.join("").trim()}\n`),
+                    value: fnArgs.length === 0 ? Function(`\n${arrBody.join("").trim()}\n`) : Function(fnArgs, `\n${arrBody.join("").trim() + `/* comment ctor ${classType.prototype.mrbrAssemblyTypeName} */`}\n`),
                     configurable: false,
                     enumerable: true,
-                    writable: false,
-                    name: "ctor"
+                    writable: false//,
+                    //name: "ctor"
                 })
             }
             if (Object.getOwnPropertyDescriptor(classType.prototype, "base") === undefined) {
                 Object.defineProperty(classType.prototype, "base", {
                     value: function (...args) {
+                        if(args === undefined || args.length === 0 ){
+                            args = [];
+                            args[0]= {}
+                        } 
                         args[0].called = args[0].called || [];
                         const self = this,
                             called = args[0].called,
                             keys = Object.keys(self.constructor.prototype),
                             keysCount = keys.length;
+                            called.push(classType.prototype.mrbrAssemblyTypeName.replace(/\./g, "_") + "_ctor");
                         for (let keyCounter = 0; keyCounter < keysCount; keyCounter++) {
                             let property = keys[keyCounter];
-                            if (called.includes(property) || !property.endsWith("_ctor")) {
+                            if (called.includes(property) || !property.endsWith("_ctor") || property === "ctor") {                             
                                 continue;
                             }
                             called.push(property);

@@ -1,6 +1,7 @@
 class {
-    constructor(options) {
-        this.ctor(options);
+    constructor(...args) {
+        this.base(...args);
+        this._events = [];
     }
     get events() { return this._events; }
     set events(value) { this._events = value; }
