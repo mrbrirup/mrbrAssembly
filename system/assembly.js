@@ -325,6 +325,7 @@ Mrbr.System.Assembly = class {
     static addClassCtor(classType) {
 
         if (Object.getOwnPropertyDescriptor(classType.prototype, "ctor") !== undefined) { return classType; }
+
         const mTokeniser = Mrbr.Utils.Parser.Tokeniser,
             tokenString = classType.prototype.constructor.toString(),
             tokeniser = new mTokeniser(Mrbr.System.Assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Utils.Parser.tokenTypes") + ".json"].result),
@@ -427,7 +428,6 @@ Mrbr.System.Assembly = class {
                 counter++;
             }
         }
-
         //  Create callable version of classType's constructor.
         //  Allows inheritance to call ctor on all inheritable classes
         //  Allows multiple inheritance calls instead of calling super when using extends
@@ -474,11 +474,38 @@ Mrbr.System.Assembly = class {
                     name: "base"
                 })
             }
+            if (Object.getOwnPropertyDescriptor(classType.prototype, "bases") === undefined) {
+                Object.defineProperty(classType.prototype, "bases", {
+                    value: function () {
+                        if (classType.prototype._bases !== undefined) { return classType.prototype._bases }
+                        const self = this,
+                            keys = [self.constructor.mrbrAssemblyTypeName]                                                    
+                        Mrbr.System.Assembly.listClassInheritance(keys, self.constructor);
+                        classType.prototype._bases = keys;
+                        return classType.prototype._bases;
+                    },
+                    configurable: false,
+                    enumerable: true,
+                    writable: false,
+                    name: "bases"
+                });
+            }
         }
         catch (e) {
             console.log(e)
         }
         return classType;
+    }
+    static listClassInheritance(keys, obj) {
+        if (obj.inherits && obj.mrbrAssemblyTypeName) {
+            for (let inheritCounter = 0, inheritCount = obj.inherits.length, inherits = obj.inherits; inheritCounter < inheritCount; inheritCounter++) {
+                let inherit = inherits[inheritCounter];
+                if (!keys.includes(inherit)) {
+                    keys.push(inherit)
+                    Mrbr.System.Assembly.listClassInheritance(keys, Mrbr.System.Assembly.toObject(inherit));
+                }
+            }
+        }
     }
     /**
      * 
@@ -504,13 +531,13 @@ Mrbr.System.Assembly = class {
             return Promise.all(loadClassesPromises);
         }
     }
-    loadConfigFiles(){
+    loadConfigFiles() {
         throw "Not implemented"
     }
-    loadScriptElement(){
+    loadScriptElement() {
         throw "Not implemented"
     }
-    createLinkedScriptElement(){
+    createLinkedScriptElement() {
         throw "Not implemented"
     }
     /**

@@ -24,4 +24,17 @@ class {
     isTypeOf(checkObject) {
         return this.typeMatch(this, checkObject)
     }
+    canTypeMatch(whatIsThis, canItBeThis ){
+        if(!whatIsThis || !canItBeThis){
+            throw "Nothing to compare";
+        }
+        const whatIsThisBases = whatIsThis.bases();
+        if(!whatIsThisBases && whatIsThisBases.length === 0){
+            return false;
+        }
+        return whatIsThisBases.includes(canItBeThis.mrbrAssemblyTypeName);                    
+    }
+    canBeTypeOf(checkObject){
+        return this.canTypeMatch(this, checkObject);
+    }
 }

@@ -1,5 +1,5 @@
 class {
-    static get using() { return ["Mrbr.Geometry.Size","Mrbr.Geometry.Point"]; }
+    static get inherits() { return ["Mrbr.Geometry.Size","Mrbr.Geometry.Point"]; }
     constructor(...args) {
         let size = (args && args.length > 0 && args[0].size) ? args[0].size : [0, 0, 32, 24];
         this.x = size[0];
