@@ -1,11 +1,13 @@
 class {
     static get inherits() { return ["Mrbr.Geometry.Size","Mrbr.Geometry.Point"]; }
     constructor(...args) {
-        let size = (args && args.length > 0 && args[0].size) ? args[0].size : [0, 0, 32, 24];
-        this.x = size[0];
-        this.y = size[1];
-        this.width = size[2];
-        this.height = size[3];
+        // let size = args[0].size || {x:0, y:0, width:32, height: 24};
+        // this.x = size.x;
+        // this.y = size.y;
+        // this.width = size.width;
+        // this.height = size.height;
+        this.base(...args);
+        //console.log("size:", size)
     }
     get right() { return this.x + this.width - 1 }
     get bottom() { return this.y + this.height - 1 }
