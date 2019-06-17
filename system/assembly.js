@@ -23,7 +23,7 @@ Mrbr.System.Assembly = class {
     /**
      * Load classes required by assembly function
      */
-    static get using() { return ["Mrbr.System.ManifestEntry"] }
+    static get using() { return ["Mrbr.System.ManifestEntry", "Mrbr.System.Interface"] }
     /**
      * 
      * @param  {...any} args    create a namespaced object 
@@ -168,7 +168,6 @@ Mrbr.System.Assembly = class {
             assemblyToObject = assembly.toObject,
             fileReplacements = Mrbr.System.Assembly.fileReplacements,
             makeFileReplacements = Mrbr.System.Assembly.resolveNamespaceToFile,
-
             assemblyLoadClasses = assembly.loadClasses,
             assemblySetInheritance = assembly.setInheritance,
             assemblyAddClassCtor = assembly.addClassCtor,
@@ -182,8 +181,6 @@ Mrbr.System.Assembly = class {
                     if (!((obj = assemblyToObject(className)) instanceof Function)) {
                         try {
                             Function(`${className} = ${result};\n${assembly.addTypeNameScript(className)};\n`)();
-                            //var fn = new Function(`${className} = ${result};\n${assembly.addTypeNameScript(className)};\n`);
-                            //fn.call(window)
                             obj = assemblyToObject(className);
                         }
                         catch (e) {
@@ -261,6 +258,7 @@ Mrbr.System.Assembly = class {
             fileTypes = Mrbr.System.ManifestEntry.FileTypes,
             assemblyLoadClass = assembly.loadClass,
             assemblyLoadScript = assembly.loadScript,
+            assemblyLoadScriptElement = assembly.loadScriptElement,
             assemblyLoadFile = assembly.loadFile;
         return Promise.all((Array.isArray(manifest) ? manifest : [manifest])
             .map(function (manifestEntry) {
@@ -277,6 +275,10 @@ Mrbr.System.Assembly = class {
                         return new Promise(function (resolve, reject) {
                             assemblyLoadFile(manifestEntry.entryName).then(result => resolve());
                         })
+                    case fileTypes.ScriptElement:
+                        return new Promise(function (resolve, reject) {
+                            assemblyLoadScriptElement(manifestEntry.entryName).then(result => resolve());
+                        })
 
                 }
             }));
@@ -291,10 +293,7 @@ Mrbr.System.Assembly = class {
         return new Promise(function (resolve, reject) {
             assembly.loadFile(fileName)
                 .then(result => {
-                    var scr = document.createElement("script");
-                    scr.id = fileName;
-                    scr.text = result;
-                    document.head.appendChild(scr);
+                    Function(result)()
                     resolve();
                 });
         });
@@ -479,7 +478,7 @@ Mrbr.System.Assembly = class {
                     value: function () {
                         if (classType.prototype._bases !== undefined) { return classType.prototype._bases }
                         const self = this,
-                            keys = [self.constructor.mrbrAssemblyTypeName]                                                    
+                            keys = [self.constructor.mrbrAssemblyTypeName]
                         Mrbr.System.Assembly.listClassInheritance(keys, self.constructor);
                         classType.prototype._bases = keys;
                         return classType.prototype._bases;
@@ -531,14 +530,146 @@ Mrbr.System.Assembly = class {
             return Promise.all(loadClassesPromises);
         }
     }
-    loadConfigFiles() {
-        throw "Not implemented"
+    static loadConfigFile(configFileName) {
+        const assembly = Mrbr.System.Assembly;
+        return new Promise(function (resolve, reject) {
+            assembly.loadFile(configFileName)
+                .then(result => {
+                    assembly.loader[configFileName].config = JSON.parse(result)
+                    resolve();
+                });
+        });
     }
-    loadScriptElement() {
-        throw "Not implemented"
+    static loadConfigFiles(configFiles) {
+        if (configFiles === undefined || classes.length === 0) { return Promise.resolve(); }
+        const assembly = Mrbr.System.Assembly;
+        let loadConfigsPromises = (Array.isArray(configFiles) ? configFiles : [configFiles])
+            .map(function (configFile) {
+                return new Promise(function (resolve, reject) {
+                    assembly
+                        .loadConfigFile(configFile)
+                        .then(function (result) { resolve(configFile) })
+                })
+            })
+        if (loadConfigsPromises === undefined || loadConfigsPromises.length === 0) {
+            return Promise.resolved([]);
+        }
+        else {
+            return Promise.all(loadConfigsPromises);
+        }
     }
-    createLinkedScriptElement() {
-        throw "Not implemented"
+    static loadScriptElement(fileName) {
+        const assembly = Mrbr.System.Assembly;
+        return new Promise(function (resolve, reject) {
+            assembly.loadFile(fileName)
+                .then(result => {
+                    var scr = document.createElement("script");
+                    scr.id = fileName;
+                    scr.text = result;
+                    document.head.appendChild(scr);
+                    resolve();
+                });
+        });
+    }
+    static loadScriptElements(filenames) {
+        if (filenames === undefined || filenames.length === 0) { return Promise.resolve(); }
+        const assembly = Mrbr.System.Assembly;
+        let loadConfigsPromises = (Array.isArray(filenames) ? filenames : [filenames])
+            .map(function (filename) {
+                return new Promise(function (resolve, reject) {
+                    assembly
+                        .loadScriptElement(filename)
+                        .then(function (result) { resolve(filename) })
+                })
+            })
+        if (loadConfigsPromises === undefined || loadConfigsPromises.length === 0) {
+            return Promise.resolved([]);
+        }
+        else {
+            return Promise.all(loadConfigsPromises);
+        }
+    }
+    static createLinkedScriptElement(fileName) {
+        var scr = document.createElement("script");
+        scr.id = fileName;
+        scr.src = fileName;
+        document.head.appendChild(scr);
+        return Promise.resolve();
+    }
+    static createLinkedScriptElements(fileNames) {
+        if (filenames === undefined || filenames.length === 0) { return Promise.resolve(); }
+        const assembly = Mrbr.System.Assembly;
+        let loadLinkedScriptElements = (Array.isArray(filenames) ? filenames : [filenames])
+            .map(function (filename) {
+                return new Promise(function (resolve, reject) {
+                    assembly
+                        .createLinkedScriptElement(filename)
+                        .then(function (result) { resolve(filename) })
+                })
+            })
+        if (loadLinkedScriptElements === undefined || loadLinkedScriptElements.length === 0) {
+            return Promise.resolved([]);
+        }
+        else {
+            return Promise.all(loadLinkedScriptElements);
+        }
+    }
+    static loadInterface(interfaceName) {
+        let interfaceNames = [interfaceName],
+            fileName = interfaceName;
+        const assembly = Mrbr.System.Assembly,
+            assemblyToObject = assembly.toObject,
+            fileReplacements = Mrbr.System.Assembly.fileReplacements,
+            makeFileReplacements = Mrbr.System.Assembly.resolveNamespaceToFile,
+            assemblyLoadClasses = assembly.loadClasses,
+            assemblySetInheritance = assembly.setInheritance,
+            assemblyAddClassCtor = assembly.addClassCtor,
+            assemblyLoadInterface = assembly.loadInterface,
+            assemblyLoadManifest = assembly.loadManifest;
+        fileName = makeFileReplacements(interfaceName)
+        fileName += ".json"
+        return new Promise(function (resolve, reject) {
+            assembly.loadFile(fileName)
+                .then(function (result) {
+                    let obj = assemblyToObject(interfaceName);
+                    if (obj.mrbrInterfaceName === undefined) {
+                        obj = Object.assign(obj, JSON.parse(result));
+                        obj.mrbrInterfaceName = interfaceName
+                    }
+                    let loadInterfaceRequirements = []
+                    if (obj.inherits && obj.inherits.length > 0) { loadInterfaceRequirements.push(Promise.resolve());
+                    assembly.setInheritance() }
+                    if (obj.using && obj.using.length > 0) { loadInterfaceRequirements.push(assemblyLoadClasses(obj.using)) }
+                    if (obj.interfaces && obj.interfaces.length > 0) { loadInterfaceRequirements.push(assemblyLoadInterface) }
+                    if (obj.manifest && obj.manifest.length > 0) { loadInterfaceRequirements.push(assemblyLoadManifest(obj.manifest)) }
+                    Promise.all(loadInterfaceRequirements).then(() => {
+                        resolve();
+                    })
+                });
+        })
+    }
+    static loadInterfaces(interfaceNames) {
+
+        if (interfaceNames === undefined || interfaceNames.length === 0) { return Promise.resolve(); }
+        const assembly = Mrbr.System.Assembly;
+        let loadInterfacesPromises = (Array.isArray(interfaceNames) ? interfaceNames : [interfaceNames])
+            .map(function (interfaceName) {
+                return new Promise(function (resolve, reject) {
+                    assembly
+                        .loadInterface(interfaceName)
+                        .then(function (result) { resolve(interfaceName) })
+                })
+            })
+        if (loadInterfacesPromises === undefined || loadInterfacesPromises.length === 0) {
+            return Promise.resolved([]);
+        }
+        else {
+            return Promise.all(loadInterfacesPromises);
+        }
+    }
+    static setInterfaceInheritance() {
+        return Promise.resolve()
+        //throw "Not implemented"
     }
     /**
      * Set inheritance for target from all sources classes

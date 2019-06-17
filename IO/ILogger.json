@@ -1,0 +1,16 @@
+{
+    "inherits": ["CanvasUI.Controls.Component", "Mrbr.Geometry.Rectangle"],
+    "using" : ["Mrbr.Geometry.Size"],
+    "interfaces" : ["Mrbr.Geometry.Size"],
+    "manifest" : ["Mrbr.Geometry.Size"],
+    "properties": {
+        "name": {},
+        "fullName": {"accessor":"r"}
+    },
+    "methods": {
+        "log": {
+            "text": "String",
+            "includeArgs": true
+        }
+    }
+}
