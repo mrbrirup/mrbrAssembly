@@ -758,3 +758,22 @@ Mrbr.System.Assembly = class {
         });
     }
 } 
+/*
+Object.defineProperty(Array.prototype, "mrbrFor", {
+    value: function (...args) {
+        const self = this, fn = args.pop(), count = self.length;
+        for (let counter = 0; counter < count; counter++) fn({ counter: counter, item: self[counter], count: count, array: self, args: args });
+    }
+})
+Object.defineProperty(Array.prototype, "mrbrContextFor", {
+    value: function (...args) {
+        const self = this, context = args.shift(), fn = args.pop(), count = self.length;
+        for (let counter = 0; counter < count; counter++) fn.call(context, { counter: counter, item: self[counter], count: count, array: self, args: args });
+    }
+})
+var v = [1, 2]
+var w = [3, 4]
+var h = 12;
+let f1 = function (value) { console.log(value.counter, value.count, Math.pow(value.item, value.args[0][value.counter])); };
+(Array.isArray(v) ? v : [v]).mrbrContextFor(this, w, f1)
+*/
