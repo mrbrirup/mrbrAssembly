@@ -625,6 +625,7 @@ Mrbr.System.Assembly = class {
             assemblySetInheritance = assembly.setInheritance,
             assemblyAddClassCtor = assembly.addClassCtor,
             assemblyLoadInterface = assembly.loadInterface,
+            assemblyLoadInterfaces = assembly.loadInterfaces,
             assemblyLoadManifest = assembly.loadManifest;
         fileName = makeFileReplacements(interfaceName)
         fileName += ".json"
@@ -637,39 +638,45 @@ Mrbr.System.Assembly = class {
                         obj.mrbrInterfaceName = interfaceName
                     }
                     let loadInterfaceRequirements = []
-                    if (obj.inherits && obj.inherits.length > 0) { loadInterfaceRequirements.push(Promise.resolve());
-                    assembly.setInheritance() }
+                    if (obj.inherits && obj.inherits.length > 0) { loadInterfaceRequirements.push(assemblyLoadInterfaces(obj.inherits)); }
                     if (obj.using && obj.using.length > 0) { loadInterfaceRequirements.push(assemblyLoadClasses(obj.using)) }
-                    if (obj.interfaces && obj.interfaces.length > 0) { loadInterfaceRequirements.push(assemblyLoadInterface) }
+                    if (obj.interfaces && obj.interfaces.length > 0) { loadInterfaceRequirements.push(assemblyLoadInterfaces(obj.interfaces)) }
                     if (obj.manifest && obj.manifest.length > 0) { loadInterfaceRequirements.push(assemblyLoadManifest(obj.manifest)) }
                     Promise.all(loadInterfaceRequirements).then(() => {
+                        assembly.setInterfaceInheritance(obj.inherits, interfaceName)
                         resolve();
                     })
                 });
         })
     }
     static loadInterfaces(interfaceNames) {
-
         if (interfaceNames === undefined || interfaceNames.length === 0) { return Promise.resolve(); }
         const assembly = Mrbr.System.Assembly;
-        let loadInterfacesPromises = (Array.isArray(interfaceNames) ? interfaceNames : [interfaceNames])
-            .map(function (interfaceName) {
-                return new Promise(function (resolve, reject) {
-                    assembly
-                        .loadInterface(interfaceName)
-                        .then(function (result) { resolve(interfaceName) })
-                })
+        interfaceNames = (Array.isArray(interfaceNames) ? interfaceNames : [interfaceNames])
+        let loadInterfacesPromises = new Array(interfaceNames.length)
+        for (let interfaceCounter = 0, interfaceCount = interfaceNames.length, interfaceName = interfaceNames[interfaceCounter]; interfaceCounter < interfaceCount; interfaceCounter++) {
+            console.log(interfaceName)
+            loadInterfacesPromises[interfaceCounter] = new Promise(function (resolve, reject) {
+                assembly
+                    .loadInterface(interfaceName)
+                    .then(function (result) { resolve(interfaceName) })
             })
-        if (loadInterfacesPromises === undefined || loadInterfacesPromises.length === 0) {
-            return Promise.resolved([]);
         }
-        else {
-            return Promise.all(loadInterfacesPromises);
-        }
+        return Promise.all(loadInterfacesPromises);
     }
-    static setInterfaceInheritance() {
-        return Promise.resolve()
-        //throw "Not implemented"
+    static setInterfaceInheritance(sources, targetName) {
+        if (sources === undefined) { return; }
+        sources = Array.isArray(sources) ? sources : [sources];
+        const assembly = Mrbr.System.Assembly,
+            target = assembly.toObject(targetName);
+        if (!target.inherited){target.inherited=[]}
+        for (let sourcesCounter = 0, sourcesCount = sources.length, sourceName = sources[sourcesCounter], source = assembly.toObject(sourceName); sourcesCounter < sourcesCount; sourcesCounter++) {
+            if(target.inherited.includes(sourceName)){continue;}
+            target.inherited.push(sourceName)
+            if(source.inherited){target.inherited = target.inherited.concat(source.inherited);}
+            if (source.properties) {target.properties = Object.assign(target.properties, source.properties)}
+            if (source.methods) { target.methods = Object.assign(target.methods, source.methods) }
+        }
     }
     /**
      * Set inheritance for target from all sources classes

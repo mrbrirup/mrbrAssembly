@@ -1,0 +1,12 @@
+{    
+    "properties": {
+        "name2": {},
+        "veryfullName2": {"accessor":"get"}
+    },
+    "methods": {
+        "extremlyloggy2": {
+            "loggytext2": "String",
+            "includeArgs": true
+        }
+    }
+}
