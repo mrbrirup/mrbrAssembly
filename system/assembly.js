@@ -599,32 +599,28 @@ Mrbr.System.Assembly = class {
     static createLinkedScriptElements(fileNames) {
         if (filenames === undefined || filenames.length === 0) { return Promise.resolve(); }
         const assembly = Mrbr.System.Assembly;
-        let loadLinkedScriptElements = (Array.isArray(filenames) ? filenames : [filenames])
-            .map(function (filename) {
-                return new Promise(function (resolve, reject) {
-                    assembly
-                        .createLinkedScriptElement(filename)
-                        .then(function (result) { resolve(filename) })
-                })
+        fileNames = Array.isArray(filenames) ? filenames : [filenames];
+        let loadLinkedScriptElements = new Array(filenames.length);
+        for (let scriptCounter = 0, scriptCount = fileNames.length, filename = filenames[scriptCounter]; scriptCounter < scriptCount; scriptCounter++) {
+            loadLinkedScriptElements[scriptCounter] = new Promise(function (resolve, reject) {
+                assembly
+                    .createLinkedScriptElement(filename)
+                    .then(function (result) { resolve(filename) })
             })
-        if (loadLinkedScriptElements === undefined || loadLinkedScriptElements.length === 0) {
-            return Promise.resolved([]);
         }
-        else {
-            return Promise.all(loadLinkedScriptElements);
-        }
+        return Promise.all(loadLinkedScriptElements);
     }
     static loadInterface(interfaceName) {
         let interfaceNames = [interfaceName],
             fileName = interfaceName;
         const assembly = Mrbr.System.Assembly,
             assemblyToObject = assembly.toObject,
-            fileReplacements = Mrbr.System.Assembly.fileReplacements,
+            //fileReplacements = Mrbr.System.Assembly.fileReplacements,
             makeFileReplacements = Mrbr.System.Assembly.resolveNamespaceToFile,
             assemblyLoadClasses = assembly.loadClasses,
-            assemblySetInheritance = assembly.setInheritance,
-            assemblyAddClassCtor = assembly.addClassCtor,
-            assemblyLoadInterface = assembly.loadInterface,
+            //assemblySetInheritance = assembly.setInheritance,
+            //assemblyAddClassCtor = assembly.addClassCtor,
+            //assemblyLoadInterface = assembly.loadInterface,
             assemblyLoadInterfaces = assembly.loadInterfaces,
             assemblyLoadManifest = assembly.loadManifest;
         fileName = makeFileReplacements(interfaceName)
@@ -655,7 +651,6 @@ Mrbr.System.Assembly = class {
         interfaceNames = (Array.isArray(interfaceNames) ? interfaceNames : [interfaceNames])
         let loadInterfacesPromises = new Array(interfaceNames.length)
         for (let interfaceCounter = 0, interfaceCount = interfaceNames.length, interfaceName = interfaceNames[interfaceCounter]; interfaceCounter < interfaceCount; interfaceCounter++) {
-            console.log(interfaceName)
             loadInterfacesPromises[interfaceCounter] = new Promise(function (resolve, reject) {
                 assembly
                     .loadInterface(interfaceName)
@@ -669,12 +664,12 @@ Mrbr.System.Assembly = class {
         sources = Array.isArray(sources) ? sources : [sources];
         const assembly = Mrbr.System.Assembly,
             target = assembly.toObject(targetName);
-        if (!target.inherited){target.inherited=[]}
+        if (!target.inherited) { target.inherited = [] }
         for (let sourcesCounter = 0, sourcesCount = sources.length, sourceName = sources[sourcesCounter], source = assembly.toObject(sourceName); sourcesCounter < sourcesCount; sourcesCounter++) {
-            if(target.inherited.includes(sourceName)){continue;}
+            if (target.inherited.includes(sourceName)) { continue; }
             target.inherited.push(sourceName)
-            if(source.inherited){target.inherited = target.inherited.concat(source.inherited);}
-            if (source.properties) {target.properties = Object.assign(target.properties, source.properties)}
+            if (source.inherited) { target.inherited = target.inherited.concat(source.inherited); }
+            if (source.properties) { target.properties = Object.assign(target.properties, source.properties) }
             if (source.methods) { target.methods = Object.assign(target.methods, source.methods) }
         }
     }
