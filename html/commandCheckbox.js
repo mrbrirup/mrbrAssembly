@@ -4,9 +4,9 @@ class {
       let self = this;
       self._elementType = "command"
       self.base(...args)        
-      self.element.setAttribute("id", self.id);
-      self.element.setAttribute("name", self.name);
-      self.frameElement.addAttribute("type", "checkbox")
+
+      
+      self.setAttribute("type", "checkbox")
             
     } 
   }

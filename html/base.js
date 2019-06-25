@@ -4,9 +4,7 @@ class {
       let self = this;
       self._elementType = "base"
       self.base(...args)        
-      self.element.setAttribute("id", self.id);
-      self.element.setAttribute("name", self.name);
-      
-            
     } 
+    get href(){return this.getAttribute("href");}
+    set href(value){this.setAttribute("href", value);}
   }

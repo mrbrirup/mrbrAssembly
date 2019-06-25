@@ -4,9 +4,5 @@ class {
       let self = this;
       self._elementType = "b"
       self.base(...args)        
-      self.element.setAttribute("id", self.id);
-      self.element.setAttribute("name", self.name);
-      
-            
     } 
   }

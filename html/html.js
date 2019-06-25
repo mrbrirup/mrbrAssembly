@@ -4,9 +4,9 @@ class {
       let self = this;
       self._elementType = "html"
       self.base(...args)        
-      self.element.setAttribute("id", self.id);
-      self.element.setAttribute("name", self.name);
-      
-            
-    } 
+      self.setAttribute("id", self.id);
+      self.setAttribute("name", self.name);
+    }     
+    get manifest(){return this.getAttribute("manifest");}
+    set manifest(value){this.setAttribute("manifest" , value);}
   }
