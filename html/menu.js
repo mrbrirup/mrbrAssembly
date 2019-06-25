@@ -6,7 +6,9 @@ class {
       self.base(...args)        
       self.setAttribute("id", self.id);
       self.setAttribute("name", self.name);
-      
-            
     } 
-  }
+    get type(){return this.getAttribute("type");}
+    set type(value){this.setAttribute("type" , value);}
+    get label(){return this.getAttribute("label");}
+    set label(value){this.setAttribute("label" , value);}        
+}
