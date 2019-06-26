@@ -259,7 +259,9 @@ Mrbr.System.Assembly = class {
             assemblyLoadClass = assembly.loadClass,
             assemblyLoadScript = assembly.loadScript,
             assemblyLoadScriptElement = assembly.loadScriptElement,
-            assemblyLoadFile = assembly.loadFile;
+            assemblyLoadFile = assembly.loadFile,
+            assemblyLoadStyle = assembly.loadStyleElement,
+            assemblyLinkedStyle = assembly.createLinkedStyleElement;
         return Promise.all((Array.isArray(manifest) ? manifest : [manifest])
             .map(function (manifestEntry) {
                 switch (manifestEntry.fileType) {
@@ -279,7 +281,24 @@ Mrbr.System.Assembly = class {
                         return new Promise(function (resolve, reject) {
                             assemblyLoadScriptElement(manifestEntry.entryName).then(result => resolve());
                         })
-
+                    case fileTypes.Style:
+                        return new Promise(function (resolve, reject) {
+                            if (manifestEntry.entryName.toLowerCase().endsWith(".css")) {
+                                assemblyLoadStyle(manifestEntry.entryName).then(result => resolve());
+                            }
+                            else {
+                                assemblyLoadStyle(`${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css`).then(result => resolve());
+                            }
+                        });
+                    case fileTypes.LinkedStyle:
+                        return new Promise(function (resolve, reject) {
+                            if (manifestEntry.entryName.toLowerCase().endsWith(".css")) {
+                                assemblyLinkedStyle(manifestEntry.entryName).then(result => resolve());
+                            }
+                            else {
+                                assemblyLinkedStyle(`${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css`).then(result => resolve());
+                            }
+                        });
                 }
             }));
     }
@@ -558,6 +577,42 @@ Mrbr.System.Assembly = class {
             return Promise.all(loadConfigsPromises);
         }
     }
+    static loadStyleElement(fileName) {
+        const assembly = Mrbr.System.Assembly;
+        return new Promise(function (resolve, reject) {
+            assembly.loadFile(fileName)
+                .then(result => {
+                    let css = document.createElement("style");
+                    css.type = 'text/css';
+                    if (css.styleSheet) {
+                        css.styleSheet.cssText = result;
+                    } else {
+                        css.appendChild(document.createTextNode(result));
+                    }
+                    document.head.appendChild(css);
+                    resolve();
+                });
+        });
+    }
+    static loadStyleElements(filenames) {
+        if (filenames === undefined || filenames.length === 0) { return Promise.resolve(); }
+        const assembly = Mrbr.System.Assembly;
+        let loadStylePromises = (Array.isArray(filenames) ? filenames : [filenames])
+            .map(function (filename) {
+                return new Promise(function (resolve, reject) {
+                    assembly
+                        .loadStyleElement(filename)
+                        .then(function (result) { resolve(filename) })
+                })
+            })
+        if (loadStylePromises === undefined || loadStylePromises.length === 0) {
+            return Promise.resolved([]);
+        }
+        else {
+            return Promise.all(loadStylePromises);
+        }
+    }
+
     static loadScriptElement(fileName) {
         const assembly = Mrbr.System.Assembly;
         return new Promise(function (resolve, reject) {
@@ -610,6 +665,31 @@ Mrbr.System.Assembly = class {
         }
         return Promise.all(loadLinkedScriptElements);
     }
+
+    static createLinkedStyleElement(fileName) {
+        var css = document.createElement('link');
+        css.type = 'text/css';
+        css.rel = 'stylesheet';
+        css.href = fileName;
+        document.head.appendChild(css);
+        return Promise.resolve();
+    }
+
+    static createLinkedStyleElements(fileNames) {
+        if (filenames === undefined || filenames.length === 0) { return Promise.resolve(); }
+        const assembly = Mrbr.System.Assembly;
+        fileNames = Array.isArray(filenames) ? filenames : [filenames];
+        let loadLinkedStyleElements = new Array(filenames.length);
+        for (let styleCounter = 0, styleCount = fileNames.length, filename = filenames[styleCounter]; styleCounter < styleCount; styleCounter++) {
+            loadLinkedStyleElements[styleCounter] = new Promise(function (resolve, reject) {
+                assembly
+                    .createLinkedStyleElement(filename)
+                    .then(function (result) { resolve(filename) })
+            })
+        }
+        return Promise.all(loadLinkedStyleElements);
+    }
+
     static loadInterface(interfaceName) {
         let interfaceNames = [interfaceName],
             fileName = interfaceName;
@@ -757,23 +837,12 @@ Mrbr.System.Assembly = class {
                 });
         });
     }
-} 
-/*
-Object.defineProperty(Array.prototype, "mrbrFor", {
-    value: function (...args) {
-        const self = this, fn = args.pop(), count = self.length;
-        for (let counter = 0; counter < count; counter++) fn({ counter: counter, item: self[counter], count: count, array: self, args: args });
+    static createNamespaceManifest(ns, entryType, entries) {
+        if (ns === undefined || entryType === undefined || entries === undefined || entries.length === 0) { return []; }
+        const entriesCount = entries.length
+        let retVal = new Array(entriesCount),
+            entry = Mrbr.System.ManifestEntry;
+        for (let entryCounter = 0; entryCounter < entriesCount; entryCounter++) { retVal[entryCounter] = new entry(entryType, `${ns}.${entries[entryCounter]}`); }
+        return retVal;
     }
-})
-Object.defineProperty(Array.prototype, "mrbrContextFor", {
-    value: function (...args) {
-        const self = this, context = args.shift(), fn = args.pop(), count = self.length;
-        for (let counter = 0; counter < count; counter++) fn.call(context, { counter: counter, item: self[counter], count: count, array: self, args: args });
-    }
-})
-var v = [1, 2]
-var w = [3, 4]
-var h = 12;
-let f1 = function (value) { console.log(value.counter, value.count, Math.pow(value.item, value.args[0][value.counter])); };
-(Array.isArray(v) ? v : [v]).mrbrContextFor(this, w, f1)
-*/
+}

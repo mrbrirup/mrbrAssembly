@@ -1,5 +1,5 @@
 class {
-    static get inherits() { return ["Mrbr.System.Object"]; }
+    static get inherits() { return ["Mrbr.System.Object", "Mrbr.System.EventEmitter"]; }
     constructor(...args) {
         let self = this;
         self.base(...args)
@@ -13,6 +13,13 @@ class {
             self._id = self._element.getAttribute("id")
         }
         if (self._name) { self._element.setAttribute("name", self._name) }
+        self.childElements = [];
+    }
+    addChild(element){
+        console.log(element)
+        console.log(element.element)
+        this.childElements.push(element);
+        this.appendChild(element.element)
     }
     setAttribute(name, value) {
         this.element.setAttribute(name, value);
@@ -241,28 +248,10 @@ class {
     scrollIntoView() { this.element.scrollIntoView() } //Scrolls the specified element into the visible area of the browser window
     setAttributeNode(attributenode) { this.element.setAttributeNode(attributenode) } //Sets or changes the specified attribute node
     toString() { return this.element.toString(); } //Converts an element to a string
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     static createElement(elementType) {
         return document.createElement(elementType);
+    }
+    static create(elementName, ...args) {
+        return new Mrbr.System.Assembly.toObject(elementName)(args)
     }
 }

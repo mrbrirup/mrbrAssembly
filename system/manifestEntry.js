@@ -36,7 +36,9 @@ class {
             Interface: "interface",
             Config: "config",
             ScriptElement: "scriptElement",
-            LinkedScript: "linkedScript"
+            LinkedScript: "linkedScript",
+            Style:"styleElement",
+            LinkedStyle:"linkedStyle"
         }
     }
 }

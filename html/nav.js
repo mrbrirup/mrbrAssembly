@@ -3,10 +3,6 @@ class {
       constructor(...args) {
       let self = this;
       self._elementType = "nav"
-      self.base(...args)        
-
-      
-      
-            
+      self.base(...args)      
     } 
   }
