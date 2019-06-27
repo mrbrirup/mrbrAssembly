@@ -4,22 +4,46 @@ class {
         let self = this;
         self.base(...args)
         //self._id = args[0].id;
-        self._elementType = args[0].elementType || self._elementType;
-        self._element = args[0].element || Mrbr.Html.BaseHtml.createElement(self.elementType);
-        if (args[0].id) {
+        //debugger
+
+        self._elementType = args[0].elementType !== undefined ? args[0].elementType : self._elementType;
+        self._element = args[0].element === undefined ? Mrbr.Html.BaseHtml.createElement(self.elementType) : args[0].element;
+        if (args[0].id !== undefined) {
             self._element.setAttribute("id", args[0].id)
         }
-        else if (args[0].element) {
+        else if (args[0].element !== undefined) {
             self._id = self._element.getAttribute("id")
         }
-        if (self._name) { self._element.setAttribute("name", self._name) }
+        if (self._name !== undefined) { self._element.setAttribute("name", self._name) }
         self.childElements = [];
     }
-    addChild(element){
-        console.log(element)
-        console.log(element.element)
+    addChild(element) {
         this.childElements.push(element);
         this.appendChild(element.element)
+        return this;
+    }
+    addChildren(elements) {
+        if (elements === undefined || elements.length === 0) { return this; }
+        elements = Array.isArray(elements) ? elements : [elements];
+        for (let elementCounter = 0, elementCount = elements.length, self = this, childElements = self.childElements, selfAddChild = self.addChild.bind(self); elementCounter < elementCount; elementCounter++) {
+            let ele = elements[elementCounter]
+            selfAddChild(ele)
+        }
+        return this;
+    }
+    shiftChild(element) {
+        this.childElements.push(element);
+        this.prepend(element.element)
+        return this;
+    }
+    shiftChildren(elements) {
+        if (elements === undefined || elements.length === 0) { return this; }
+        elements = Array.isArray(elements) ? elements : [elements];
+        for (let elementCounter = 0, elementCount = elements.length, self = this, childElements = self.childElements, selfShiftChild = self.shiftChild.bind(self); elementCounter < elementCount; elementCounter++) {
+            let ele = elements[elementCounter]
+            selfShiftChild(ele)
+        }
+        return this;
     }
     setAttribute(name, value) {
         this.element.setAttribute(name, value);
@@ -191,8 +215,9 @@ class {
     set tagName(value) { this.element.tagName = value; return this; }
     get textContent() { return this.element.textContent; }//.	Sets or returns the textual content of a node and its descendants
     set textContent(value) { this.element.textContent = value; return this; }
-    addEventListener() { } //Attaches an event handler to the specified element
+    addEventListener(eventName, fn, capture = false) { this.element.addEventListener(eventName, fn, capture) } //Attaches an event handler to the specified element
     appendChild(node) { this.element.appendChild(node) } //Adds a new child node, to an element, as the last child node
+    prepend(node) { this.element.prepend(node) } //Adds a new child node, to an element, as the last child node
     blur() { this.element.blur() } //Removes focus from an element
     click() { this.element.click() } //Simulates a mouse-click on an element
     cloneNode(cloneChildren) { return this.element.cloneNode(cloneChildren) } //Clones an element
@@ -252,6 +277,7 @@ class {
         return document.createElement(elementType);
     }
     static create(elementName, ...args) {
+        debugger
         return new Mrbr.System.Assembly.toObject(elementName)(args)
     }
 }
