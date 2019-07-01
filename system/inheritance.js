@@ -13,6 +13,10 @@ class {
      */
     static get nonInheritable() { return ["constructor", "mrbrAssemblyTypeName", "base", "bases"] }
     /**
+     * 
+     */
+    static get dotReplaceRegex()  { return /\./g;}
+    /**
      * Set inheritance for target from all sources classes
      * @param {string or string[]} sources source for inheritance string is converted to string[]
      * @param {class} target class that will inherit from sources
@@ -25,18 +29,19 @@ class {
             nonInheritable = system.Inheritance.nonInheritable,
             toObject = system.Assembly.toObject,
             assembly = system.Assembly,
-            dotReplaceRegex = new RegExp("\\.", "g"),
+            dotReplaceRegex = system.Inheritance.dotReplaceRegex,
             overrides = target.overrides || [];
         sources = Array.isArray(sources) ? sources : [sources];
         const prms = [];
         //const overrides = [];
         for (let sourceCounter = 0, sourcesCount = sources.length; sourceCounter < sourcesCount; sourceCounter++) {
             prms.push(new Promise((resolve, reject) => {
-                const strSource = sources[sourceCounter];
-                let sourcePrototype = toObject(strSource).prototype;
-                ((sourcePrototype === undefined) ? assembly.loadClass(strSource) : Promise.resolve())
-                    .then(() => {
-                        let sourcePrototype = toObject(strSource).prototype;
+                const source = sources[sourceCounter];
+                let sourcePrototype = typeof source === 'string' ? toObject(source).prototype : source;
+                ((sourcePrototype === undefined) ? assembly.loadClass(source) : Promise.resolve())
+                .then(function() {
+                        let sourcePrototype = typeof source === 'string' ? toObject(source).prototype : source;
+                        //let sourcePrototype = toObject(strSource).prototype;
                         if (sourcePrototype === undefined) { resolve(); return; }
                         const properties = Object.getOwnPropertyNames(sourcePrototype);
                         for (let propertiesCounter = 0, propertiesCount = properties.length; propertiesCounter < propertiesCount; propertiesCounter++) {
@@ -45,13 +50,13 @@ class {
                                 let isDefined = (Object.getOwnPropertyDescriptor(targetPrototype, propertyName) !== undefined);
                                 let newPropertyName;
                                 if (propertyName === "ctor") {
-                                    newPropertyName = `${strSource.replace(dotReplaceRegex, "_")}_${propertyName}`;
+                                    newPropertyName = `${source.replace(dotReplaceRegex, "_")}_${propertyName}`;
                                 }
                                 else if (!isDefined) {
                                     newPropertyName = propertyName;
                                 }
                                 else if (isDefined && overrides.length > 0) {
-                                    let overridePropertyName = `${strSource}.${propertyName}`;
+                                    let overridePropertyName = `${source}.${propertyName}`;
                                     if (overrides.includes(overridePropertyName)) {
                                         newPropertyName = overridePropertyName.replace(dotReplaceRegex, "_");
                                     }
@@ -68,6 +73,9 @@ class {
                         };
                         resolve();
                     })
+                    .catch(function(error){
+                        reject(error)
+                    })    
             }));
         }
         await Promise.all(prms);
