@@ -80,8 +80,8 @@ Mrbr.System.Assembly = class {
             })
                 .then(response => response.text()
                     .then(text => { loader[url].result = text; resolver(text); })
-                    .catch(function (error) { rejecter(error) })
-                    .catch(function (error) { rejecter(error) }));
+                    .catch(function (error) { rejecter(error) }))
+                .catch(function (error) { rejecter(error) })
             loader[url] = { promise: prm, result: undefined };
             return prm;
         }
@@ -113,7 +113,6 @@ Mrbr.System.Assembly = class {
                     loader[url].result = xmlHttp.responseText;
                     resolver(xmlHttp.responseText);
                 } else {
-                    
                     rejecter(error);
                 }
             }
@@ -175,6 +174,35 @@ Mrbr.System.Assembly = class {
      * Static object of all files loaded through Assembly
      */
     static get loader() { return Mrbr.System.Assembly._loader; }
+    static loadComponent(componentName) {
+        // let classNames = [className],
+        //     fileName = className;
+        const assembly = Mrbr.System.Assembly,
+            assemblyToObject = assembly.toObject,
+            makeFileReplacements = Mrbr.System.Assembly.resolveNamespaceToFile,
+            assemblyLoadClasses = assembly.loadClasses,
+            assemblySetInheritance = assembly.setInheritance,
+            assemblyAddClassCtor = assembly.addClassCtor,
+            assemblyLoadManifest = assembly.loadManifest;
+        let fileName = makeFileReplacements(componentName) + ".js";
+        return new Promise(function (resolve, reject) {
+            assembly.loadFile(fileName)
+                .then(function (result) {
+                    let obj;
+                    if (!((obj = assemblyToObject(componentName)) instanceof Function)) {
+                        let elementName = componentName.toLowerCase().split(".").join("-");
+                        let txt = `${componentName} = ${result};\ncustomElements.define('${elementName}', ${componentName});` 
+                        console.log(txt)
+                        Function(txt)();
+                        assembly.objectCache[componentName] = obj = assemblyToObject(componentName);
+                        resolve();
+                    }
+                })
+                .catch(function(error){
+                    reject(error);
+                })
+        })
+    }
     /**
      * 
      * @param {string} className    load file from namespaced object name
@@ -202,8 +230,8 @@ Mrbr.System.Assembly = class {
                         assembly.objectCache[className] = obj = assemblyToObject(className);
                     }
                 })
-                .catch(function (error) {                    
-                    if(error instanceof Error){
+                .catch(function (error) {
+                    if (error instanceof Error) {
                         reject(new Mrbr.System.Exception({ name: "Exception", error: error, source: `${assembly.mrbrAssemblyTypeName}:loadClass`, info: `className: ${className}` }))
                     }
                     reject(error)
@@ -221,16 +249,12 @@ Mrbr.System.Assembly = class {
                                     resolveLoadingManifest()
                                 })
                                 .catch(function (error) {
-                                    
-
                                     rejectLoadingManifest(error)
                                 });
                         }
                     })
                 })
                 .catch(function (error) {
-                    
-
                     reject(error)
                 })
                 .then(function () {
@@ -257,21 +281,16 @@ Mrbr.System.Assembly = class {
                                         }
                                     })
                                     .catch(function (error) {
-                                        
-
                                         rejectLoadClasses();
                                     });
                             }
                         loopLoadClasses();
                     })
                         .catch(function (error) {
-                            
-
                             reject(error)
                         })
                         .then(function (result1) {
                             const arrCtors = [];
-                            //try {
                             if (classNames !== undefined && classNames.length > 0) {
                                 for (let classNameCounter = 0, classNameCount = classNames.length, obj; classNameCounter < classNameCount; classNameCounter++) {
                                     if ((obj = assemblyToObject(classNames[classNameCounter])) instanceof Function) {
@@ -281,15 +300,9 @@ Mrbr.System.Assembly = class {
                                     }
                                 };
                             }
-                            //}
-                            //catch (e) {
-                            //    console.log(e);
-                            //}
                             resolve();
                         })
                         .catch(function (error) {
-                            
-
                             reject(error)
                         })
                 });
@@ -320,8 +333,15 @@ Mrbr.System.Assembly = class {
                         assemblyLoadClass(manifestEntry.entryName)
                             .then(result => resolve())
                             .catch(function (error) {
-                                
-
+                                reject(error)
+                            });
+                    })
+                    break;
+                case fileTypes.Component:
+                    arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
+                        assembly.loadComponent(manifestEntry.entryName)
+                            .then(result => resolve())
+                            .catch(function (error) {
                                 reject(error)
                             });
                     })
@@ -331,8 +351,6 @@ Mrbr.System.Assembly = class {
                         assemblyLoadScript(manifestEntry.entryName)
                             .then(result => resolve())
                             .catch(function (error) {
-                                
-
                                 reject(error)
                             });
                     })
@@ -341,8 +359,6 @@ Mrbr.System.Assembly = class {
                     arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
                         assemblyLoadFile(manifestEntry.entryName).then(result => resolve())
                             .catch(function (error) {
-                                
-
                                 reject(error)
                             });
                     })
@@ -351,7 +367,6 @@ Mrbr.System.Assembly = class {
                     arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
                         assemblyLoadScriptElement(manifestEntry.entryName).then(result => resolve())
                             .catch(function (error) {
-                                
                                 reject(error)
                             });
                     })
@@ -361,14 +376,12 @@ Mrbr.System.Assembly = class {
                         if (manifestEntry.entryName.toLowerCase().endsWith(".css")) {
                             assemblyLoadStyle(manifestEntry.entryName).then(result => resolve())
                                 .catch(function (error) {
-                                    
                                     reject(error)
                                 });
                         }
                         else {
                             assemblyLoadStyle(`${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css`).then(result => resolve())
                                 .catch(function (error) {
-                                    
                                     reject(error)
                                 });
                         }
@@ -378,14 +391,11 @@ Mrbr.System.Assembly = class {
                     arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
                         if (manifestEntry.entryName.toLowerCase().endsWith(".css")) {
                             assemblyLinkedStyle(manifestEntry.entryName).then(result => resolve()).catch(function (error) {
-                                
-
                                 reject(error)
                             });
                         }
                         else {
                             assemblyLinkedStyle(`${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css`).then(result => resolve()).catch(function (error) {
-                                
                                 reject(error)
                             });
                         }
@@ -409,10 +419,8 @@ Mrbr.System.Assembly = class {
                     resolve();
                 })
                 .catch(function (error) {
-                    
                     reject(error)
-                })
-                ;
+                });
         });
     }
     /**
@@ -432,8 +440,6 @@ Mrbr.System.Assembly = class {
             arrFileNames[fileNameCounter] = new Promise(function (resolve, reject) {
                 assemblyLoadFile(fileNames).then(result => resolve())
                     .catch(function (error) {
-                        
-
                         reject(error)
                     })
             })
@@ -469,7 +475,6 @@ Mrbr.System.Assembly = class {
             bodyEnd = 0,
             bodyLevel = 0,
             currToken,
-            body = "",
             arrBody;
         //  find text for start of constructor is source text
         while (searching && counter < tokensLength) {
@@ -617,10 +622,6 @@ Mrbr.System.Assembly = class {
                 name: "bases"
             });
         }
-        //}
-        //catch (e) {
-        //    console.log(e)
-        // }
         return classType;
     }
     static listClassInheritance(keys, obj) {
@@ -654,7 +655,7 @@ Mrbr.System.Assembly = class {
                     .loadClass(className)
                     .then(function (result) { resolve(className) })
                     .catch(function (error) {
-                        
+
                         //let ex = new Mrbr.System.Exception({ name: "Exception", error: error })                        
                         reject(error);
                     });
@@ -671,7 +672,7 @@ Mrbr.System.Assembly = class {
                     resolve();
                 })
                 .catch(function (error) {
-                    
+
 
                     reject(error)
                 });
@@ -690,7 +691,7 @@ Mrbr.System.Assembly = class {
                     .loadConfigFile(configFile)
                     .then(function (result) { resolve(configFile) })
                     .catch(function (error) {
-                        
+
 
                         reject(error)
                     })
@@ -714,7 +715,7 @@ Mrbr.System.Assembly = class {
                     resolve();
                 })
                 .catch(function (error) {
-                    
+
 
                     reject(error)
                 });
@@ -733,7 +734,7 @@ Mrbr.System.Assembly = class {
                     .loadStyleElement(filename)
                     .then(function (result) { resolve(filename) })
                     .catch(function (error) {
-                        
+
 
                         reject(error)
                     })
@@ -754,7 +755,7 @@ Mrbr.System.Assembly = class {
                     resolve();
                 })
                 .catch(function (error) {
-                    
+
 
                     reject(error)
                 });
@@ -773,7 +774,7 @@ Mrbr.System.Assembly = class {
                     .loadScriptElement(filename)
                     .then(function (result) { resolve(filename) })
                     .catch(function (error) {
-                        
+
                         reject(error)
                     })
             })
@@ -798,7 +799,7 @@ Mrbr.System.Assembly = class {
                     .createLinkedScriptElement(filename)
                     .then(function (result) { resolve(filename) })
                     .catch(function (error) {
-                        
+
 
                         reject(error)
                     })
@@ -827,7 +828,7 @@ Mrbr.System.Assembly = class {
                     .createLinkedStyleElement(filename)
                     .then(function (result) { resolve(filename) })
                     .catch(function (error) {
-                        
+
 
                         reject(error)
                     })
@@ -865,7 +866,7 @@ Mrbr.System.Assembly = class {
                         resolve();
                     })
                         .catch(function (error) {
-                            
+
 
                             reject(error)
                         })
@@ -883,7 +884,7 @@ Mrbr.System.Assembly = class {
                     .loadInterface(interfaceName)
                     .then(function (result) { resolve(interfaceName) })
                     .catch(function (error) {
-                        
+
 
                         reject(error)
                     })
@@ -954,7 +955,7 @@ Mrbr.System.Assembly = class {
                     resolve();
                 })
                 .catch(function (error) {
-                    
+
 
                     reject(error)
                 })
@@ -981,25 +982,25 @@ Mrbr.System.Assembly = class {
         }
         let handlers = [];
         return new Promise(function (resolve, reject) {
-        fnResolve = resolve;
-        Mrbr.System.Assembly
-            .initialised(config)
-            .then(function () {
-                if (document.readyState === "complete") {
-                    resolve("complete");
-                    //fn();
-                }
-                else {
-                    if (document.addEventListener) {
-                        document.addEventListener("DOMContentLoaded", fnReady);
-                        window.addEventListener("load", fnReady);
-                    } else {
-                        document.attachEvent("onreadystatechange", fnReady);
-                        window.attachEvent("onload", fnReady);
-                        window.attachEvent("load", fnReady);
+            fnResolve = resolve;
+            Mrbr.System.Assembly
+                .initialised(config)
+                .then(function () {
+                    if (document.readyState === "complete") {
+                        resolve("complete");
+                        //fn();
                     }
-                }
-            })
+                    else {
+                        if (document.addEventListener) {
+                            document.addEventListener("DOMContentLoaded", fnReady);
+                            window.addEventListener("load", fnReady);
+                        } else {
+                            document.attachEvent("onreadystatechange", fnReady);
+                            window.attachEvent("onload", fnReady);
+                            window.attachEvent("load", fnReady);
+                        }
+                    }
+                })
         })
     }
     static createNamespaceManifest(ns, entryType, entries) {

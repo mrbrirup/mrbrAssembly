@@ -9,14 +9,16 @@ class {
         if (args[0].error) {
             Object.getOwnPropertyNames(args[0].error).forEach(key => {
                 self[key] = args[0].error[key];
-
             })
         }
         this._source = args[0].source;
         this._info = args[0].info;
+        this._innerExceptions = [];
     }
     get source(){return this._source;}
     set source(value){this._source = value;}
     get info(){return this._info;}
     set info(value){this._info = value;}
+    get innerExceptions(){return this._innerExceptions;}
+    set innerExceptions(value){this._innerExceptions = value;}
 }

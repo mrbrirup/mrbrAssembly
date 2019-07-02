@@ -38,7 +38,8 @@ class {
             ScriptElement: "scriptElement",
             LinkedScript: "linkedScript",
             Style:"styleElement",
-            LinkedStyle:"linkedStyle"
+            LinkedStyle:"linkedStyle",
+            Component:"component"
         }
     }
 }
