@@ -21,8 +21,8 @@ class {
      * @param {string or string[]} sources source for inheritance string is converted to string[]
      * @param {class} target class that will inherit from sources
      */
-    static async applyInheritance(sources, target) {
-        if (sources === undefined || sources.length === 0) { return; }
+    static /*async*/ applyInheritance(sources, target) {
+        if (sources === undefined || sources.length === 0) { return Promise.resolve(); }
         const
             targetPrototype = target.prototype,
             system = Mrbr.System,
@@ -32,16 +32,14 @@ class {
             dotReplaceRegex = system.Inheritance.dotReplaceRegex,
             overrides = target.overrides || [];
         sources = Array.isArray(sources) ? sources : [sources];
-        const prms = [];
-        //const overrides = [];
+        const sourcePromises = new Array(sources.length);
         for (let sourceCounter = 0, sourcesCount = sources.length; sourceCounter < sourcesCount; sourceCounter++) {
-            prms.push(new Promise((resolve, reject) => {
+            sourcePromises[sourceCounter] = new Promise((resolve, reject) => {
                 const source = sources[sourceCounter];
                 let sourcePrototype = typeof source === 'string' ? toObject(source).prototype : source;
                 ((sourcePrototype === undefined) ? assembly.loadClass(source) : Promise.resolve())
                 .then(function() {
                         let sourcePrototype = typeof source === 'string' ? toObject(source).prototype : source;
-                        //let sourcePrototype = toObject(strSource).prototype;
                         if (sourcePrototype === undefined) { resolve(); return; }
                         const properties = Object.getOwnPropertyNames(sourcePrototype);
                         for (let propertiesCounter = 0, propertiesCount = properties.length; propertiesCounter < propertiesCount; propertiesCounter++) {
@@ -76,8 +74,9 @@ class {
                     .catch(function(error){
                         reject(error)
                     })    
-            }));
+            });
         }
-        await Promise.all(prms);
+        //await Promise.all(sourcePromises);
+        return Promise.all(sourcePromises);
     }
 }

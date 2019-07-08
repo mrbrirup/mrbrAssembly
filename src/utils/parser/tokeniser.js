@@ -4,22 +4,28 @@
 class Tokeniser {
     static get using() { return ["Mrbr.Utils.Parser.Token"]; }
     constructor(types) {
-        var self = this; types
+        let self = this; //types
         self.types = JSON.parse(types)
-        self.tokens = [];
+        //console.log(types)
+        //self.tokens = [];
         self.initialBlocks = self.types.initialBlocks;
         self.whitespace = self.types.whitespace;
         self.keywords = self.types.keywords;
         self.objectMethods = self.types.objectMethods;
         self.operators = self.types.operators;
         self.blocks = self.types.blocks;
-        self.identifier = self.types.identifier
+        self.identifier = self.types.identifier;
+        let parserToken = Mrbr.Utils.Parser.Token,
+            parserTokenGroups = parserToken.Groups;
+        self.markerRegexes = self.types.markerRegexes.map(element => {
+            return { group: parserTokenGroups[element.group], name: element.name, rx: new RegExp(element.rx, element.flags) }
+        })
     }
     /**
      * 
      * @param {string} source Source text to be Tokenised
      */
-    tokenise(source) {
+    tokenise(source) {        
         const self = this,
             selfTokeniseQuotes = self.tokeniseQuotes,
             selfTokeniseBlockComment = self.tokeniseBlockComment,
@@ -28,22 +34,25 @@ class Tokeniser {
             sourceLength = source.length,
             parserToken = Mrbr.Utils.Parser.Token,
             parserTokenGroups = parserToken.Groups,
-            markerRegexes = [
-                { group: parserTokenGroups.Whitespace, name: "whitespace", rx: /( |\t|\f|\r|\n)\1*/g },
-                { group: parserTokenGroups.Quote, name: "quotes", rx: /("|'|`)+/g },
-                { group: parserTokenGroups.Comment, name: "comments", rx: /([/]{2}|[/]\*|\*\/)/g },
-                { group: parserTokenGroups.Number, name: "exponent", rx: /(\b[0-9]+[.][0-9]e[0-9]+\b|\b[0-9]e[0-9]+\b)/ig },
-                { group: parserTokenGroups.Number, name: "hex", rx: /(\b0x[0-9a-f]+\b)/ig },
-                { group: parserTokenGroups.Number, name: "octal", rx: /(\b0o{0,1}[0-7]+\b)/ig },
-                { group: parserTokenGroups.Number, name: "binary", rx: /(\b0b{1}[0-1]+\b)/ig },
-                { group: parserTokenGroups.Number, name: "float", rx: /(\b[0-9]+\.[0-9]+\b)/g },
-                { group: parserTokenGroups.Number, name: "integer", rx: /(\b[0-9]+\b)/g },
-                { group: parserTokenGroups.Number, name: "infinity", rx: /(\bInfinity\b)/g },
-                { group: parserTokenGroups.Number, name: "NaN", rx: /(\bNaN\b)/g },
-                { group: parserTokenGroups.Whitespace, name: "crlf", rx: /(\r\n)\1*/g },
-                { group: parserTokenGroups.Block, name: "blocks", rx: /([{}[\]()]{1})/g },
-                { group: parserTokenGroups.Operator, name: "operators", rx: /(>>>=|>>=|<<=|===|!==|[.]{3}|>{3}|<<|!=|<=|>>|>=|[+]{2}|--|==|=>|[|]=|\^=|&=|\+=|-=|\*=|\/=|%=|\|\||&&|;|,|\?|:|\^|&|=|<|>|\+|-|\*|\/|%|!|~|\.)/g }
-            ];
+            markerRegexes = self.markerRegexes
+        // markerRegexes = [
+        //     { group: parserTokenGroups.Whitespace, name: "whitespace", rx: /( |\t|\f|\r|\n)\1*/g },
+        //     { group: parserTokenGroups.Quote, name: "quotes", rx: /("|'|`)+/g },
+        //     { group: parserTokenGroups.Comment, name: "comments", rx: /([/]{2}|[/]\*|\*\/)/g },
+        //     //{ group: parserTokenGroups.Number, name: "exponent", rx: /(\b[0-9]+[.][0-9]e[0-9]+\b|\b[0-9]e[0-9]+\b)/ig },
+        //     //{ group: parserTokenGroups.Number, name: "hex", rx: /(\b0x[0-9a-f]+\b)/ig },
+        //     //{ group: parserTokenGroups.Number, name: "octal", rx: /(\b0o{0,1}[0-7]+\b)/ig },
+        //     //{ group: parserTokenGroups.Number, name: "binary", rx: /(\b0b{1}[0-1]+\b)/ig },
+        //     //{ group: parserTokenGroups.Number, name: "float", rx: /(\b[0-9]+\.[0-9]+\b)/g },
+        //     //{ group: parserTokenGroups.Number, name: "integer", rx: /(\b[0-9]+\b)/g },
+        //     //{ group: parserTokenGroups.Number, name: "infinity", rx: /(\bInfinity\b)/g },
+        //     //{ group: parserTokenGroups.Number, name: "NaN", rx: /(\bNaN\b)/g },
+        //     { group: parserTokenGroups.Whitespace, name: "crlf", rx: /(\r\n)\1*/g },
+        //     { group: parserTokenGroups.Block, name: "blocks", rx: /([{}[\]()]{1})/g },
+        //     { group: parserTokenGroups.Operator, name: "operators", rx: /(;|,|=|\/|\.)/g }
+        //     //{ group: parserTokenGroups.Operator, name: "operators", rx: /(>>>=|>>=|<<=|===|!==|[.]{3}|>{3}|<<|!=|<=|>>|>=|[+]{2}|--|==|=>|[|]=|\^=|&=|\+=|-=|\*=|\/=|%=|\|\||&&|;|,|\?|:|\^|&|=|<|>|\+|-|\*|\/|%|!|~|\.)/g }
+        //     //{ group: parserTokenGroups.Operator, name: "operators", rx: /(,|:|=|\.)/g }
+        // ];
         let startMarker = 0,
             markerStartPoints = [],
             currentMarker;
@@ -89,7 +98,7 @@ class Tokeniser {
             currentMarker = markerStartPoints[startMarker];
         }
         //  populate token, groups, types and level
-        return self.tokens = self.populateTokenProperties(tokens.slice(1, tokenCounter), source);
+        return self.populateTokenProperties(tokens.slice(1, tokenCounter), source);
     }
     /**
      * Fill gaps in tokens.

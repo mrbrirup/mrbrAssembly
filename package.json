@@ -4,7 +4,8 @@
   "description": "Assembly, Class, Inheritance and Requirements loader",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dist": ""
   },
   "repository": {
     "type": "git",
@@ -17,9 +18,13 @@
     "requirements"
   ],
   "author": "Martin Ruppersburg",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/mrbrirup/mrbrAssembly/issues"
   },
-  "homepage": "https://github.com/mrbrirup/mrbrAssembly#readme"
+  "homepage": "https://github.com/mrbrirup/mrbrAssembly#readme",
+  "devDependencies": {
+    "fs-extra": "^8.1.0",
+    "terser": "^4.1.0"
+  }
 }
