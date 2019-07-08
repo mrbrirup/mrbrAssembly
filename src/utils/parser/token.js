@@ -9,7 +9,7 @@ class {
      *  
      */
     static get nextId() {
-        if (Mrbr.Utils.Parser.Token.__id == undefined) {
+        if (Mrbr.Utils.Parser.Token.__id === undefined) {
             Mrbr.Utils.Parser.Token.__id = 0;
         }
         return Mrbr.Utils.Parser.Token.__id++;
