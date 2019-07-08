@@ -1,0 +1,1 @@
+class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...t){this._elementType="h4",this.base(...t)}}

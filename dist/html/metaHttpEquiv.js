@@ -1,0 +1,1 @@
+class {static get inherits(){return["Mrbr.Html.Meta"]}constructor(...t){this._elementType="meta",this.base(...t),this.setAttribute("http-equiv","content-type")}get httpEquiv(){return this.getAttribute("httpEquiv")}set httpEquiv(t){this.setAttribute("httpEquiv",t)}}

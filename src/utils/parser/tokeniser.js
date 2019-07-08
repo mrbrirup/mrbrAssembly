@@ -1,7 +1,7 @@
 /**
  * Tokeniser for Javascript files
 */
-class Tokeniser {
+class {
     static get using() { return ["Mrbr.Utils.Parser.Token"]; }
     constructor(types) {
         let self = this; //types

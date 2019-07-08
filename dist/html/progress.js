@@ -1,0 +1,1 @@
+class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...t){this._elementType="progress",this.base(...t)}get value(){return this.getAttribute("value")}set value(t){this.setAttribute("value",t)}get max(){return this.getAttribute("max")}set max(t){this.setAttribute("max",t)}}

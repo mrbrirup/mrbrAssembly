@@ -1,0 +1,1 @@
+class {constructor(){this.assembly=Mrbr.System.Assembly.loader,this.loader=Mrbr.System.Assembly.loader}loadInterface(s){return new Promise((s,e)=>{})}}

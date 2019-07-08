@@ -1,0 +1,1 @@
+class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...t){this._elementType="time",this.base(...t)}get datetime(){return this.getAttribute("datetime")}set datetime(t){this.setAttribute("datetime",t)}}

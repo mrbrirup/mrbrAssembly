@@ -1,0 +1,1 @@
+class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...t){this._elementType="table",this.base(...t)}get headers(){return this.getAttribute("border")}set headers(t){this.setAttribute("border",t)}}

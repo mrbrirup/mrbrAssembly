@@ -1,0 +1,1 @@
+class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...t){this._elementType="q",this.base(...t)}get cite(){return this.getAttribute("cite")}set cite(t){this.setAttribute("cite",t)}}

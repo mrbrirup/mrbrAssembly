@@ -1,0 +1,13 @@
+{
+    "inherits":["Mrbr.IO.Test2"],    
+    "properties": {
+        "name1": {},
+        "veryfullName": {"accessor":"get"}
+    },
+    "methods": {
+        "extremlyloggy": {
+            "loggytext": "String",
+            "includeArgs": true
+        }
+    }
+}

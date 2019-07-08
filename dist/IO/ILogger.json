@@ -1,0 +1,13 @@
+{
+    "inherits":["Mrbr.IO.Test1"],
+    "properties": {
+        "name": {},
+        "fullName": {"accessor":"get"}
+    },
+    "methods": {
+        "log": {
+            "text": "String",
+            "includeArgs": true
+        }
+    }
+}

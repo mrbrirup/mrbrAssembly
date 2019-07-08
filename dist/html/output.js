@@ -1,0 +1,1 @@
+class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...t){this._elementType="output",this.base(...t)}get form(){return this.getAttribute("form")}set form(t){this.setAttribute("form",t)}get for(){return this.getAttribute("for")}set for(t){this.setAttribute("for",t)}}
