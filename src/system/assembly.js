@@ -37,10 +37,16 @@ Mrbr.System.Assembly = class {
      * @returns {object}        either a new namespaced object or the existing object
      */
     static toObject(...args) {
+        var //window = window,
+            //global = global,
+            defaultContext = Mrbr.System.Assembly.defaultContext;//,
+            //g = globalThis;
         const argCount = args.length,
-            target = (argCount === 1) ? window : args[0],
             objectName = args[argCount - 1],
             assembly = Mrbr.System.Assembly;
+        let target;
+        if ((argCount === 1) ) { target = defaultContext  }
+        else { target = args[0]; }
         if (assembly.objectCache[objectName] !== undefined) { return assembly.objectCache[objectName] }
         const nsParts = args[argCount - 1].split(".");
         let currentObject = target;
@@ -51,6 +57,9 @@ Mrbr.System.Assembly = class {
         Mrbr.System.Assembly[objectName] = currentObject
         return currentObject;
     }
+    
+    static get defaultContext(){return Mrbr.System.Assembly._defaultContext;}
+    static set defaultContext(value){Mrbr.System.Assembly._defaultContext = value;}
     static get objectCache() {
         return Mrbr.System.Assembly._objectCache
     }
@@ -62,7 +71,7 @@ Mrbr.System.Assembly = class {
         return ObjectUtils.toObject(...args) !== undefined
     }
 
-    static fetchFile(url) {
+    static fetchFile(url) {        
         const loader = Mrbr.System.Assembly.loader;
         if (loader.hasOwnProperty(url)) {
             let loadUrlObject = loader[url];
@@ -125,13 +134,15 @@ Mrbr.System.Assembly = class {
             xmlHttp.open("GET", url, true);
             xmlHttp.send("");
             xmlHttp.onreadystatechange = function () {
-                if (xmlHttp.readyState === 4 && (xmlHttp.status >= 200 && xmlHttp.status < 300)) {
-                    loader[url].result = xmlHttp.responseText;
-                    loader[url].loaded = true;
-                    delete loader[url].promise
-                    resolver(xmlHttp.responseText);
-                } else {
-                    rejecter(error);
+                if (xmlHttp.readyState === 4) {
+                    if (xmlHttp.status >= 200 && xmlHttp.status < 300) {
+                        loader[url].result = xmlHttp.responseText;
+                        loader[url].loaded = true;
+                        delete loader[url].promise
+                        resolver(xmlHttp.responseText);
+                    } else {
+                        rejecter(new Error(xmlHttp.statusText));
+                    }
                 }
             }
             loader[url] = { promise: prm, result: undefined, loaded: false };
@@ -233,8 +244,8 @@ Mrbr.System.Assembly = class {
             assemblyLoadClasses = assembly.loadClasses,
             assemblySetInheritance = assembly.setInheritance,
             assemblyAddClassCtor = assembly.addClassCtor,
-            assemblyLoadManifest = assembly.loadManifest,
-            exception = Mrbr.System.Exception;
+            assemblyLoadManifest = assembly.loadManifest;
+        //exception = Mrbr.System.Exception;
         fileName = makeFileReplacements(className) + ".js"
         return new Promise(function (resolve, reject) {
             assembly.loadFile(fileName)
@@ -247,7 +258,8 @@ Mrbr.System.Assembly = class {
                 })
                 .catch(function (error) {
                     if (error instanceof Error) {
-                        reject(new exception({ name: "Exception", error: error, source: `${assembly.mrbrAssemblyTypeName}:loadClass`, info: `className: ${className}` }))
+                        //reject(new Mrbr.System.Exception({ name: "Exception", error: error, source: `${assembly.mrbrAssemblyTypeName}:loadClass`, info: `className: ${className}` }))
+                        reject({ name: "Exception", error: error, source: `${assembly.mrbrAssemblyTypeName}:loadClass`, info: `className: ${className}` })
                     }
                     reject(error)
                 })
@@ -955,12 +967,29 @@ Mrbr.System.Assembly = class {
      * @returns {Promise} resolves when all files are loaded
      */
     static initialised(config) {
-        const assembly = Mrbr.System.Assembly;
-        if (fetch) {
-            Mrbr.System.Assembly.loadFile = Mrbr.System.Assembly.fetchFile
+        
+        const assembly = Mrbr.System.Assembly;        
+        if (config && config.loadFile !== undefined) {
+            Mrbr.System.Assembly.loadFile = config.loadFile
         }
-        else {
+        else if (window && window.fetch) {
             Mrbr.System.Assembly.loadFile = Mrbr.System.Assembly.loadXmlHttpFile
+            //Mrbr.System.Assembly.loadFile = Mrbr.System.Assembly.fetchFile
+        }
+        else {            
+            Mrbr.System.Assembly.loadFile = Mrbr.System.Assembly.loadXmlHttpFile
+        }
+        if(config && config.defaultContext){
+            Mrbr.System.Assembly._defaultContext = config.defaultContext;
+        }
+        else if(typeof window === 'undefined'){
+            Mrbr.System.Assembly._defaultContext = globalThis;
+        }
+        else if(window){
+            Mrbr.System.Assembly._defaultContext = window;
+        }
+        else{
+            Mrbr.System.Assembly._defaultContext = undefined;
         }
         if (config !== undefined && config !== null) {
             if (config.assemblyResolvers !== undefined && config.assemblyResolvers !== null) {
@@ -974,6 +1003,7 @@ Mrbr.System.Assembly = class {
             assembly
                 .loadFile(Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Utils.Parser.tokenCtor") + ".json")
                 .then(() => assembly.loadClass("Mrbr.Utils.Parser.Tokeniser"))
+                .catch(error => console.log(error))
                 .then(() => assembly.loadClass("Mrbr.System.ManifestEntry"))
                 .then(() => assembly.loadClass("Mrbr.System.Inheritance"))
                 .then(() => assembly.loadClass("Mrbr.System.Exception"))
@@ -994,12 +1024,14 @@ Mrbr.System.Assembly = class {
      * Once Assembly.initialised is resolved events are set for when browser DOM is "ready"
      * @returns {Promise} DOM is "ready"
      */
-    static onReady(config, fn) {
+    static onReady(config, fn) {        
         let fnResolve;
         let fnReady = function () {
+            console.log("fnReady")
             if (document.removeEventListener) {
                 document.removeEventListener("DOMContentLoaded", fnReady);
                 window.removeEventListener("load", fnReady);
+                window.removeEventListener("DOMContentLoaded", fnReady);
             } else {
                 document.detachEvent("onreadystatechange", fnReady);
                 window.detachEvent("onload", fnReady);
@@ -1014,6 +1046,11 @@ Mrbr.System.Assembly = class {
             Mrbr.System.Assembly
                 .initialised(config)
                 .then(function () {
+                    document.onreadystatechange = function () {
+                        if (document.readyState === 'complete') {
+                            fnReady();                          
+                        }
+                      }
                     if (document.readyState === "complete") {
                         resolve("complete");
                         //fn();
@@ -1022,9 +1059,12 @@ Mrbr.System.Assembly = class {
                         if (document.addEventListener) {
                             document.addEventListener("DOMContentLoaded", fnReady);
                             window.addEventListener("load", fnReady);
+                            window.addEventListener("DOMContentLoaded", fnReady);
+                            document.addEventListener("load", fnReady);
                         } else {
                             document.attachEvent("onreadystatechange", fnReady);
                             window.attachEvent("onload", fnReady);
+                            document.attachEvent("load", fnReady);
                             window.attachEvent("load", fnReady);
                         }
                     }

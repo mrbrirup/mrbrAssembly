@@ -1,81 +1,64 @@
-const fs = require("fs-extra");
-const path = require('path');
-const Terser = require("terser");
-const dirSrc = path.resolve(__dirname, "../src");
-const dirDest = path.resolve(__dirname, "../dist");
-const typeDir = 0;
-const typeFile = 1;
-const findClassStart = /^\s*class\s+{/
-function buildSourceDistributionList(src, dest, done) {
-    let results = [];
-    fs.readdir(src, function (err, list) {
-        if (err) return done(err);
-
-        var pending = list.length;
-
-        if (!pending) return done(null, results);
-
-        list.forEach(function (file) {
-            //const f1 = file;
-            const fileSrc = path.resolve(src, file),
-                fileDest = path.resolve(dest, file);
-
-
-            fs.stat(fileSrc, function (err, stat) {
-                // If directory, execute a recursive call
-                if (stat && stat.isDirectory()) {
-                    // Add directory to array [comment if you need to remove the directories from the array]
-                    results.push({ src: fileSrc, dest: fileDest, type: typeDir });
-                    buildSourceDistributionList(fileSrc, fileDest, function (err, res) {
-                        results = results.concat(res);
-                        if (!--pending) done(null, results);
-                    });
-                } else {
-                    results.push({ src: fileSrc, dest: fileDest, type: typeFile });
-                    if (!--pending) done(null, results);
-                }
+const exec = require("./exec"),
+    path = require("path"),
+    vm = require("vm"),
+    fs = require("fs");
+global.require = require;
+new vm.Script(fs.readFileSync("./src/system/assembly.js", "utf8")).runInThisContext();
+const loadFile = function (url) {
+    const fs = require("fs-extra"),
+        loader = Mrbr.System.Assembly.loader;
+    if (loader.hasOwnProperty(url)) {
+        const loadUrlObject = loader[url];
+        if (loadUrlObject.loaded === true) {
+            return Promise.resolve();
+        }
+        else {
+            return loadUrlObject.promise;
+        }
+    }
+    else {
+        let resolver,
+            rejecter,
+            prm = new Promise((resolve, reject) => {
+                resolver = resolve;
+                rejecter = reject;
             });
-        });
-    });
-};
-function processEntries(err, result) {
-    result.forEach(entry => {
-        if (entry.type === typeDir) {
-            console.log(`Directory Processed: ${entry.src}`)
-        }
-        else if (entry.src.endsWith(".js")) {
-            console.log(`File Processed: ${entry.dest}`);
-            const content = fs.readFileSync(entry.src, "utf8")
-            const regex = /^\s*class\s+{/m;
-            const str = content;
-            const subst = `class é {`;
-
-            const result = str.replace(regex, subst);
-            var code = result;
-            var tresult = Terser.minify(code);
-            const regex1 = /^\s*class é\s*{/m;
-            const str1 = tresult.code;
-            const subst1 = `class {`;
-
-            const result1 = str1.replace(regex1, subst1);
-
-            if(tresult.err){
-                console.log("Minify Error")
-                fs.outputFileSync(entry.dest, content, function (err) {
-                    if (err) {
-                        console.log("x   Error: ", err)
-                    }
-                })
-            }
-            else{
-                fs.outputFileSync(entry.dest, result1, function (err) {
-                    if (err) {
-                        console.log("x   Error: ", err)
-                    }
-                })
-            }
-
-        }
-    })
+        fs.readFile(url, "utf8")
+            .then(function (result) {
+                loader[url].result = result;
+                loader[url].loaded = true;
+                delete loader[url].promise
+                resolver(result);
+            })
+            .catch(function (error) { rejecter(error) })
+        loader[url] = { promise: prm, result: undefined, loaded: false };
+        return prm;
+    }
 }
-buildSourceDistributionList(dirSrc, dirDest, processEntries);
+Mrbr.System.Assembly.initialised({
+    assemblyResolvers: [
+        { replace: new RegExp("^App\\.Utils"), with: path.resolve(__dirname, "./../utils/") + "/" },
+        { replace: new RegExp("^Mrbr\\."), with: path.resolve(__dirname, "./../src/") + "/" },
+        { replace: new RegExp("\\.", "g"), with: "/" }
+    ],
+    loadFile: loadFile
+})
+    .then(function (result) {
+        var entry = Mrbr.System.ManifestEntry,
+            fileTypes = Mrbr.System.ManifestEntry.FileTypes;
+        Mrbr.System.Assembly.loadManifest([new entry(fileTypes.Class, "App.Utils.TerserMinifier")])
+            .then(function (result) {
+                let terserMinifier = new App.Utils.TerserMinifier({ __dirname: __dirname });
+                terserMinifier.buildSourceDistributionList(
+                    terserMinifier.dirSrc,
+                    terserMinifier.dirDest,
+                    terserMinifier.processEntries.bind(terserMinifier)
+                )
+            })
+            .catch(function (error) {
+                console.log(error);
+            })
+    })
+    .catch(function (error) {
+        console.log(error)
+    })
