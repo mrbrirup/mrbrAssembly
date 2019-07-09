@@ -40,12 +40,12 @@ Mrbr.System.Assembly = class {
         var //window = window,
             //global = global,
             defaultContext = Mrbr.System.Assembly.defaultContext;//,
-            //g = globalThis;
+        //g = globalThis;
         const argCount = args.length,
             objectName = args[argCount - 1],
             assembly = Mrbr.System.Assembly;
         let target;
-        if ((argCount === 1) ) { target = defaultContext  }
+        if ((argCount === 1)) { target = defaultContext }
         else { target = args[0]; }
         if (assembly.objectCache[objectName] !== undefined) { return assembly.objectCache[objectName] }
         const nsParts = args[argCount - 1].split(".");
@@ -57,9 +57,9 @@ Mrbr.System.Assembly = class {
         Mrbr.System.Assembly[objectName] = currentObject
         return currentObject;
     }
-    
-    static get defaultContext(){return Mrbr.System.Assembly._defaultContext;}
-    static set defaultContext(value){Mrbr.System.Assembly._defaultContext = value;}
+
+    static get defaultContext() { return Mrbr.System.Assembly._defaultContext; }
+    static set defaultContext(value) { Mrbr.System.Assembly._defaultContext = value; }
     static get objectCache() {
         return Mrbr.System.Assembly._objectCache
     }
@@ -71,7 +71,7 @@ Mrbr.System.Assembly = class {
         return ObjectUtils.toObject(...args) !== undefined
     }
 
-    static fetchFile(url) {        
+    static fetchFile(url) {
         const loader = Mrbr.System.Assembly.loader;
         if (loader.hasOwnProperty(url)) {
             let loadUrlObject = loader[url];
@@ -967,8 +967,8 @@ Mrbr.System.Assembly = class {
      * @returns {Promise} resolves when all files are loaded
      */
     static initialised(config) {
-        
-        const assembly = Mrbr.System.Assembly;        
+
+        const assembly = Mrbr.System.Assembly;
         if (config && config.loadFile !== undefined) {
             Mrbr.System.Assembly.loadFile = config.loadFile
         }
@@ -976,19 +976,19 @@ Mrbr.System.Assembly = class {
             Mrbr.System.Assembly.loadFile = Mrbr.System.Assembly.loadXmlHttpFile
             //Mrbr.System.Assembly.loadFile = Mrbr.System.Assembly.fetchFile
         }
-        else {            
+        else {
             Mrbr.System.Assembly.loadFile = Mrbr.System.Assembly.loadXmlHttpFile
         }
-        if(config && config.defaultContext){
+        if (config && config.defaultContext) {
             Mrbr.System.Assembly._defaultContext = config.defaultContext;
         }
-        else if(typeof window === 'undefined'){
+        else if (typeof window === 'undefined') {
             Mrbr.System.Assembly._defaultContext = globalThis;
         }
-        else if(window){
+        else if (window) {
             Mrbr.System.Assembly._defaultContext = window;
         }
-        else{
+        else {
             Mrbr.System.Assembly._defaultContext = undefined;
         }
         if (config !== undefined && config !== null) {
@@ -1024,21 +1024,21 @@ Mrbr.System.Assembly = class {
      * Once Assembly.initialised is resolved events are set for when browser DOM is "ready"
      * @returns {Promise} DOM is "ready"
      */
-    static onReady(config, fn) {        
+    static onReady(config, fn) {
         let fnResolve;
         let fnReady = function () {
-            console.log("fnReady")
             if (document.removeEventListener) {
                 document.removeEventListener("DOMContentLoaded", fnReady);
+                document.removeEventListener("load", fnReady);
                 window.removeEventListener("load", fnReady);
                 window.removeEventListener("DOMContentLoaded", fnReady);
             } else {
                 document.detachEvent("onreadystatechange", fnReady);
                 window.detachEvent("onload", fnReady);
                 window.detachEvent("load", fnReady);
+                document.detachEvent("load", fnReady);
             }
             fnResolve()
-            //fn();
         }
         let handlers = [];
         return new Promise(function (resolve, reject) {
@@ -1048,12 +1048,11 @@ Mrbr.System.Assembly = class {
                 .then(function () {
                     document.onreadystatechange = function () {
                         if (document.readyState === 'complete') {
-                            fnReady();                          
+                            fnReady();
                         }
-                      }
+                    }
                     if (document.readyState === "complete") {
                         resolve("complete");
-                        //fn();
                     }
                     else {
                         if (document.addEventListener) {
