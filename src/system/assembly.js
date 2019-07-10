@@ -983,7 +983,15 @@ Mrbr.System.Assembly = class {
             Mrbr.System.Assembly._defaultContext = config.defaultContext;
         }
         else if (typeof window === 'undefined') {
-            Mrbr.System.Assembly._defaultContext = globalThis;
+            if (typeof globalThis !== 'undefined') {
+                Mrbr.System.Assembly._defaultContext = globalThis;
+            }
+            else if (typeof global !== 'undefined') {
+                Mrbr.System.Assembly._defaultContext = global;
+            }
+            else {
+                throw "No global"
+            }
         }
         else if (window) {
             Mrbr.System.Assembly._defaultContext = window;

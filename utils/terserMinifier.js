@@ -79,7 +79,14 @@ class {
                         }
                     })
                 }
-
+            }
+            else if(entry.src.endsWith(".json")){
+                const content = fs.readFileSync(entry.src, "utf8")
+                fs.outputFileSync(entry.dest, JSON.stringify(JSON.parse(content)), function (err) {
+                    if (err) {
+                        console.log("x   Error: ", err)
+                    }
+                })
             }
         })
     }
