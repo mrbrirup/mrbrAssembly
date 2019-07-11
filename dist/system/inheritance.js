@@ -1,1 +1,6 @@
+/*
+mrbrAssembly 
+Copyright 2019 Martin Ruppersburg
+Licensed under MIT (https://github.com/mrbrirup/mrbrAssembly/blob/master/licence.md)
+*/
 class {constructor(){}static get nonInheritable(){return["constructor","mrbrAssemblyTypeName","base","bases"]}static get dotReplaceRegex(){return/\./g}static applyInheritance(e,t){if(void 0===e||0===e.length)return Promise.resolve();const r=t.prototype,o=Mrbr.System,n=o.Inheritance.nonInheritable,s=o.Assembly.toObject,i=o.Assembly,c=o.Inheritance.dotReplaceRegex,l=t.overrides||[];e=Array.isArray(e)?e:[e];const a=new Array(e.length);for(let t=0,o=e.length;t<o;t++)a[t]=new Promise((o,a)=>{const p=e[t];(void 0===("string"==typeof p?s(p).prototype:p)?i.loadClass(p):Promise.resolve()).then(function(){let e="string"==typeof p?s(p).prototype:p;if(void 0===e)return void o();const t=Object.getOwnPropertyNames(e);for(let o=0,s=t.length;o<s;o++){const s=t[o];if(!n.includes(s)){let t,o=void 0!==Object.getOwnPropertyDescriptor(r,s);if("ctor"===s)t=`${p.replace(c,"_")}_${s}`;else if(o){if(o&&l.length>0){let e=`${p}.${s}`;l.includes(e)&&(t=e.replace(c,"_"))}}else t=s;void 0!==t&&Object.defineProperty(r,t,Object.getOwnPropertyDescriptor(e,s))}}o()}).catch(function(e){a(e)})});return Promise.all(a)}}

@@ -53,14 +53,25 @@ class {
             selfFindClassStart = self.findClassStart,
             selfTempClassName = self.tempClassName,
             selfRxTempClassName = self.rxTempClassName,
-            selfResetTempClassName = self.resetTempClassName;
+            selfResetTempClassName = self.resetTempClassName,
+            licence = fs.readFileSync("./licence.md", "utf8"),
+            shortLicence = fs.readFileSync("./shortLicence.md", "utf8"),
+            rxCopyRight =  /\/\*\s*Copyright \(c\)/g;
         result.forEach(entry => {
             if (entry.type === typeDir) {
                 console.log(`Directory Processed: ${entry.src}`)
             }
             else if (entry.src.endsWith(".js")) {
                 console.log(`File Processed: ${entry.dest}`);
-                const content = fs.readFileSync(entry.src, "utf8")
+                let content = fs.readFileSync(entry.src, "utf8")
+                let m;
+                if((m = rxCopyRight.exec(content)) === null){
+                    fs.outputFileSync(entry.src, `/*\n${licence}\n*/\n${content}`, function (err) {
+                        if (err) {
+                            console.log("x   Error: ", err)
+                        }                        
+                    })
+                }
                 const tempClassCode = content.replace(selfFindClassStart, selfTempClassName);
                 var terserResult = Terser.minify(tempClassCode);
                 const minifiedCode = terserResult.code.replace(selfRxTempClassName, selfResetTempClassName);
@@ -73,7 +84,7 @@ class {
                     })
                 }
                 else {
-                    fs.outputFileSync(entry.dest, minifiedCode, function (err) {
+                    fs.outputFileSync(entry.dest, `/*\n${shortLicence}\n*/\n${minifiedCode}`, function (err) {
                         if (err) {
                             console.log("x   Error: ", err)
                         }
