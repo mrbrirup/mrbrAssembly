@@ -233,14 +233,19 @@ Mrbr.System.Assembly = class {
             assemblyLoadClasses = assembly.loadClasses,
             assemblySetInheritance = assembly.setInheritance,
             assemblyAddClassCtor = assembly.addClassCtor,
-            assemblyLoadManifest = assembly.loadManifest;
+            assemblyLoadManifest = assembly.loadManifest,
+            assemblyCreateClass = assembly.createClass;
         let fileName = makeFileReplacements(componentName) + ".js";
         return new Promise(function (resolve, reject) {
             assembly.loadFile(fileName)
                 .then(function (result) {
                     if (!(assemblyToObject(componentName) instanceof Function)) {
-                        Function(`${componentName} = ${result};\ncustomElements.define('${componentName.toLowerCase().split(".").join("-")}', ${componentName});`)();
-                        assembly.objectCache[componentName] = assemblyToObject(componentName);
+                        if (assembly._classMiddleware === undefined) {
+                            createClass(componentName, result, assembly, assemblyToObject);
+                        }
+                        else {
+                            assembly.classMiddleware.go(createClass, componentName, result, assembly, assemblyToObject)
+                        }
                     }
                     resolve();
                 })
@@ -249,6 +254,27 @@ Mrbr.System.Assembly = class {
                 })
         })
     }
+    static createClass(className, result, assembly, assemblyToObject) {
+        Function(`${className} = ${result};\n${assembly.addTypeNameScript(className)};\n`)();
+        assembly.objectCache[className] = assemblyToObject(className);
+    }
+
+    static get classMiddleware() { return Mrbr.System.Assembly._classMiddleware; }
+    static set classMiddleware(value) { Mrbr.System.Assembly._classMiddleware = value; }
+
+    static createComponent(componentName, result, assembly, assemblyToObject) {
+        console.log("this.createComponent")
+        Function(`${componentName} = ${result};\ncustomElements.define('${componentName.toLowerCase().split(".").join("-")}', ${componentName});`)();
+        assembly.objectCache[componentName] = assemblyToObject(componentName);
+    }
+
+    static get componentMiddleware() { return Mrbr.System.Assembly._componentMiddleware; }
+    static set componentMiddleware(value) { Mrbr.System.Assembly._componentMiddleware = value; }
+
+
+    // Function(`${className} = ${result};\n${assembly.addTypeNameScript(className)};\n`)();
+    // assembly.objectCache[className] = obj = assemblyToObject(className);
+
     /**
      * 
      * @param {string} className    load file from namespaced object name
@@ -265,7 +291,8 @@ Mrbr.System.Assembly = class {
             assemblyLoadClasses = assembly.loadClasses,
             assemblySetInheritance = assembly.setInheritance,
             assemblyAddClassCtor = assembly.addClassCtor,
-            assemblyLoadManifest = assembly.loadManifest;
+            assemblyLoadManifest = assembly.loadManifest,
+            assemblyCreateClass = assembly.createClass;
         //exception = Mrbr.System.Exception;
         fileName = makeFileReplacements(className) + ".js"
         return new Promise(function (resolve, reject) {
@@ -273,8 +300,15 @@ Mrbr.System.Assembly = class {
                 .then(function (result) {
                     let obj;
                     if (!((obj = assemblyToObject(className)) instanceof Function)) {
-                        Function(`${className} = ${result};\n${assembly.addTypeNameScript(className)};\n`)();
-                        assembly.objectCache[className] = obj = assemblyToObject(className);
+                        if (assembly._classMiddleware === undefined) {
+                            assemblyCreateClass(className, result, assembly, assemblyToObject);
+                        }
+                        else {
+                            assembly.classMiddleware.go(assemblyCreateClass, className, result, assembly, assemblyToObject)
+                        }
+
+                        // Function(`${className} = ${result};\n${assembly.addTypeNameScript(className)};\n`)();
+                        // assembly.objectCache[className] = obj = assemblyToObject(className);
                     }
                 })
                 .catch(function (error) {
@@ -1032,6 +1066,10 @@ Mrbr.System.Assembly = class {
             assembly
                 .loadFile(Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Utils.Parser.tokenCtor") + ".json")
                 .then(() => assembly.loadClass("Mrbr.Utils.Parser.Tokeniser"))
+                .then(() => assembly.loadClass("Mrbr.System.Middleware"))
+                .then(() => {
+                    assembly._classMiddleware = new Mrbr.System.Middleware()
+                })
                 .catch(error => console.log(error))
                 .then(() => assembly.loadClass("Mrbr.System.ManifestEntry"))
                 .then(() => assembly.loadClass("Mrbr.System.Inheritance"))

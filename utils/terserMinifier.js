@@ -65,7 +65,7 @@ class {
                 console.log(`File Processed: ${entry.dest}`);
                 let content = fs.readFileSync(entry.src, "utf8")
                 let m;
-                if((m = rxCopyRight.exec(content)) === null){
+                if(content.match(rxCopyRight) === null){
                     fs.outputFileSync(entry.src, `/*\n${licence}\n*/\n${content}`, function (err) {
                         if (err) {
                             console.log("x   Error: ", err)
@@ -84,7 +84,7 @@ class {
                     })
                 }
                 else {
-                    fs.outputFileSync(entry.dest, `/*\n${shortLicence}\n*/\n${minifiedCode}`, function (err) {
+                    fs.outputFileSync(entry.dest, `/*${shortLicence}*/${minifiedCode}`, function (err) {
                         if (err) {
                             console.log("x   Error: ", err)
                         }

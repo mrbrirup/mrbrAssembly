@@ -1,6 +1,3 @@
-/*
-mrbrAssembly 
+/*mrbrAssembly 
 Copyright 2019 Martin Ruppersburg
-Licensed under MIT (https://github.com/mrbrirup/mrbrAssembly/blob/master/licence.md)
-*/
-class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...t){this._elementType="progress",this.base(...t)}get value(){return this.getAttribute("value")}set value(t){this.setAttribute("value",t)}get max(){return this.getAttribute("max")}set max(t){this.setAttribute("max",t)}}
+Licensed under MIT (https://github.com/mrbrirup/mrbrAssembly/blob/master/licence.md)*/class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...t){this._elementType="progress",this.base(...t)}get value(){return this.getAttribute("value")}set value(t){this.setAttribute("value",t)}get max(){return this.getAttribute("max")}set max(t){this.setAttribute("max",t)}}
