@@ -12,7 +12,7 @@ class {
         self.typeDir = 0;
         self.typeFile = 1;
         self.findClassStart = /^\s*class\s+{/m;
-        self.tempClassName = `class é {`;        
+        self.tempClassName = `class é {`;
         self.rxTempClassName = /^\s*class é\s*{/m;
         self.resetTempClassName = `class {`;
     }
@@ -56,20 +56,19 @@ class {
             selfResetTempClassName = self.resetTempClassName,
             licence = fs.readFileSync("./licence.md", "utf8"),
             shortLicence = fs.readFileSync("./shortLicence.md", "utf8"),
-            rxCopyRight =  /\/\*\s*Copyright \(c\)/g;
+            rxCopyRight = /\/\*\s*Copyright \(c\)/g;
         result.forEach(entry => {
             if (entry.type === typeDir) {
                 console.log(`Directory Processed: ${entry.src}`)
             }
             else if (entry.src.endsWith(".js")) {
-                console.log(`File Processed: ${entry.dest}`);
                 let content = fs.readFileSync(entry.src, "utf8")
                 let m;
-                if(content.match(rxCopyRight) === null){
+                if (content.match(rxCopyRight) === null) {
                     fs.outputFileSync(entry.src, `/*\n${licence}\n*/\n${content}`, function (err) {
                         if (err) {
                             console.log("x   Error: ", err)
-                        }                        
+                        }
                     })
                 }
                 const tempClassCode = content.replace(selfFindClassStart, selfTempClassName);
@@ -84,14 +83,31 @@ class {
                     })
                 }
                 else {
-                    fs.outputFileSync(entry.dest, `/*${shortLicence}*/${minifiedCode}`, function (err) {
-                        if (err) {
-                            console.log("x   Error: ", err)
+                    let outFileContent = `/*${shortLicence}*/${minifiedCode}`
+                    let fileExists = false;
+                    let fileDiff = true;
+                    fs.stat(entry.dest, function (err, stat) {
+                        if (err == null) {
+                            fileExists = true;
+                            let destContent = fs.readFileSync(entry.dest, "utf8")
+                            fileDiff = (outFileContent !== destContent);
+
                         }
-                    })
+                        if (!fileExists || fileDiff) {
+                            console.log(`File change written: ${entry.dest}`);
+                            fs.outputFileSync(entry.dest, outFileContent, function (err) {
+                                if (err) {
+                                    console.log("x   Error: ", err)
+                                }
+                            })
+                        }
+                        else {
+                            console.log(`File unchanged: ${entry.dest}`);
+                        }
+                    });
                 }
             }
-            else if(entry.src.endsWith(".json")){
+            else if (entry.src.endsWith(".json")) {
                 const content = fs.readFileSync(entry.src, "utf8")
                 fs.outputFileSync(entry.dest, JSON.stringify(JSON.parse(content)), function (err) {
                     if (err) {

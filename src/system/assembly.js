@@ -117,7 +117,7 @@ Mrbr.System.Assembly = class {
                         loader[url].result = text;
                         loader[url].loaded = true;
                         delete loader[url].promise
-                        const prm = {url: url, text: text}
+                        const prm = { url: url, text: text }
                         text = assembly._fileInterceptor === undefined ? assemblyLoadedFile(prm) : assembly.fileInterceptor.intercept(assemblyLoadedFile, undefined, prm)[1]
                         resolver(text);
                     })
@@ -226,8 +226,6 @@ Mrbr.System.Assembly = class {
      */
     static get loader() { return Mrbr.System.Assembly._loader; }
     static loadComponent(componentName) {
-        // let classNames = [className],
-        //     fileName = className;
         const assembly = Mrbr.System.Assembly,
             assemblyToObject = assembly.toObject,
             makeFileReplacements = Mrbr.System.Assembly.resolveNamespaceToFile,
@@ -275,7 +273,7 @@ Mrbr.System.Assembly = class {
     }
     static loadedFile(...args) {
         const prms = args[0],
-        text = prms.text;
+            text = prms.text;
         return text;
     }
     static createScriptElement(...args) {
@@ -340,7 +338,6 @@ Mrbr.System.Assembly = class {
     static get configInterceptor() { return Mrbr.System.Assembly._configInterceptor; }
     static set configInterceptor(value) { Mrbr.System.Assembly._configInterceptor = value; }
 
-
     /**
      * 
      * @param {string} className    load file from namespaced object name
@@ -365,12 +362,8 @@ Mrbr.System.Assembly = class {
                 .then(function (result) {
                     let obj;
                     if (!((obj = assemblyToObject(className)) instanceof Function)) {
-                        if (assembly._classInterceptor === undefined) {
-                            assemblyCreateClass({ className: className, result: result, assembly: assembly, assemblyToObject: assemblyToObject });
-                        }
-                        else {
-                            assembly.classInterceptor.intercept(assemblyCreateClass, undefined, { className: className, result: result, assembly: assembly, assemblyToObject: assemblyToObject })
-                        }
+                        const prm = { className: className, result: result, assembly: assembly, assemblyToObject: assemblyToObject };
+                        assembly._classInterceptor === undefined ? assemblyCreateClass(prm) : assembly.classInterceptor.intercept(assemblyCreateClass, undefined, prm)
                     }
                 })
                 .catch(function (error) {
@@ -584,12 +577,12 @@ Mrbr.System.Assembly = class {
      */
     static loadScript(fileName) {
         const assembly = Mrbr.System.Assembly,
-            self = this,
             assemblyCreateScript = assembly.createScript;
         return new Promise(function (resolve, reject) {
             assembly.loadFile(fileName)
                 .then(result => {
-                    assembly._scriptInterceptor === undefined ? assemblyCreateScript({ fileName: fileName, scriptText: result }) : assembly.scriptInterceptor.intercept(assemblyCreateScript, undefined, { fileName: fileName, scriptText: result })
+                    const prm = { fileName: fileName, scriptText: result };
+                    assembly._scriptInterceptor === undefined ? assemblyCreateScript(prm) : assembly.scriptInterceptor.intercept(assemblyCreateScript, undefined, prm)
                     resolve();
                 })
                 .catch(function (error) {
@@ -607,7 +600,7 @@ Mrbr.System.Assembly = class {
         const assembly = this,
             assemblyLoadFile = assembly.loadFile;
         fileNames = Array.isArray(fileNames) ? fileNames : [fileNames];
-        const fileNamesCount = fileNames.lengthl
+        const fileNamesCount = fileNames.length;
         const arrFileNames = new Array(fileNamesCount);
         for (let fileNameCounter = 0, filename; fileNameCounter < fileNamesCount; fileNameCounter++) {
             filename = filenames[fileNameCounter];
