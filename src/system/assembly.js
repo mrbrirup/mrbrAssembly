@@ -275,10 +275,10 @@ Mrbr.System.Assembly = class {
     static loadedFile(fileName, text) {
         return text;
     }
-    static createScriptElement() {
+    static createScriptElement(...args) {
         const prms = args[0],
             fileName = prms.fileName,
-            sourceText = prms.sourceText;
+            sourceText = prms.scriptText;
         let scr = document.createElement("script");
         scr.id = fileName;
         scr.text = sourceText;
@@ -313,9 +313,9 @@ Mrbr.System.Assembly = class {
     }
 
 
-    static createConfig(...args){
+    static createConfig(...args) {
         const prms = args[0],
-        configText = prms.configText;
+            configText = prms.configText;
         assembly.loader[configFileName].config = JSON.parse(configText);
         return assembly.loader[configFileName].config;
     }
@@ -337,7 +337,7 @@ Mrbr.System.Assembly = class {
     static get configInterceptor() { return Mrbr.System.Assembly._configInterceptor; }
     static set configInterceptor(value) { Mrbr.System.Assembly._configInterceptor = value; }
 
-    
+
     /**
      * 
      * @param {string} className    load file from namespaced object name
@@ -839,7 +839,7 @@ Mrbr.System.Assembly = class {
         return new Promise(function (resolve, reject) {
             assembly.loadFile(configFileName)
                 .then(result => {
-                    const prm = {configText: result}
+                    const prm = { configText: result }
                     assembly._configInterceptor === undefined ? assemblyCreateConfig(prm) : assembly.configInterceptor.intercept(assemblyCreateConfig, undefined, prm);
                     assembly.loader[configFileName].config = JSON.parse(result)
                     resolve();
@@ -874,7 +874,7 @@ Mrbr.System.Assembly = class {
         return new Promise(function (resolve, reject) {
             assembly.loadFile(fileName)
                 .then(result => {
-                    const prm = { fileName: fileName, result: result };
+                    const prm = { fileName: fileName, cssText: result };
                     assembly._styleInterceptor === undefined ? assemblyCreateStyle(prm) : assembly.styleInterceptor.intercept(assemblyCreateStyle, undefined, prm);
                     resolve();
                 })
@@ -909,8 +909,8 @@ Mrbr.System.Assembly = class {
         return new Promise(function (resolve, reject) {
             assembly.loadFile(fileName)
                 .then(result => {
-                    const prm = { fileName: fileName, result: result }
-                    assembly._scriptElementInterceptor === undefined ? assemblyCreateScriptElement(prm) : assembly.scriptElementInterceptor(assemblyCreateScriptElement, undefined,prm)
+                    const prm = { fileName: fileName, scriptText: result }
+                    assembly._scriptElementInterceptor === undefined ? assemblyCreateScriptElement(prm) : assembly.scriptElementInterceptor.intercept(assemblyCreateScriptElement, undefined, prm)
                     resolve();
                 })
                 .catch(function (error) {
@@ -965,8 +965,8 @@ Mrbr.System.Assembly = class {
     static createLinkedStyleElement(fileName) {
         const assembly = Mrbr.System.Assembly,
             assemblyCreateLinkedStyle = assembly.createLinkedStyle;
-            const prm = { fileName: fileName };
-        assembly._linkedStyleInterceptor === undefined ? assemblyCreateLinkedStyle(prm) : assembly._linkedStyleInterceptor(assemblyCreateLinkedStyle, undefined, prm)
+        const prm = { fileName: fileName };
+        assembly._linkedStyleInterceptor === undefined ? assemblyCreateLinkedStyle(prm) : assembly.linkedStyleInterceptor.intercept(assemblyCreateLinkedStyle, undefined, prm)
         return Promise.resolve();
     }
 
@@ -1118,14 +1118,15 @@ Mrbr.System.Assembly = class {
                 .then(() => assembly.loadClass("Mrbr.System.Object"))
                 .then(() => assembly.loadClass("Mrbr.Interceptor.Interceptor"))
                 .then(() => {
-                    assembly._classInterceptor = new Mrbr.Interceptor.Interceptor()
-                    assembly._componentInterceptor = new Mrbr.Interceptor.Interceptor()
-                    assembly._scriptInterceptor = new Mrbr.Interceptor.Interceptor()
-                    assembly._fileInterceptor = new Mrbr.Interceptor.Interceptor()
-                    assembly._scriptElementInterceptor = new Mrbr.Interceptor.Interceptor()
-                    assembly._styleInterceptor = new Mrbr.Interceptor.Interceptor()
-                    assembly._linkedStyleInterceptor = new Mrbr.Interceptor.Interceptor()
-                    assembly._configInterceptor = new Mrbr.Interceptor.Interceptor()
+                    const mii = Mrbr.Interceptor.Interceptor;
+                    assembly._classInterceptor = new mii()
+                    assembly._componentInterceptor = new mii()
+                    assembly._scriptInterceptor = new mii()
+                    assembly._fileInterceptor = new mii()
+                    assembly._scriptElementInterceptor = new mii()
+                    assembly._styleInterceptor = new mii()
+                    assembly._linkedStyleInterceptor = new mii()
+                    assembly._configInterceptor = new mii()
                 })
                 .catch(error => console.log(error))
                 .then(() => assembly.loadClass("Mrbr.System.ManifestEntry"))
