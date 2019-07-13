@@ -29,8 +29,9 @@ const loadFile = function (url) {
             .then(function (result) {
                 loader[url].result = result;
                 loader[url].loaded = true;
-                delete loader[url].promise
-                result = (assembly._fileInterceptor === undefined)? assemblyLoadedFile(url,result) :assembly.fileInterceptor.intercept(assemblyLoadedFile, undefined, url, result)[1];
+                delete loader[url].promise;
+                const prm = { url: url, text: result }
+                result = (assembly._fileInterceptor === undefined) ? assemblyLoadedFile(prm) : assembly.fileInterceptor.intercept(assemblyLoadedFile, undefined,prm)[1];
                 resolver(result);
             })
             .catch(function (error) { rejecter(error) })

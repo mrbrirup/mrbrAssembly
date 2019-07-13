@@ -117,7 +117,8 @@ Mrbr.System.Assembly = class {
                         loader[url].result = text;
                         loader[url].loaded = true;
                         delete loader[url].promise
-                        text = assembly._fileInterceptor === undefined ? assemblyLoadedFile(url, text) : assembly.fileInterceptor.intercept(assemblyLoadedFile, undefined, url, text)[1]
+                        const prm = {url: url, text: text}
+                        text = assembly._fileInterceptor === undefined ? assemblyLoadedFile(prm) : assembly.fileInterceptor.intercept(assemblyLoadedFile, undefined, prm)[1]
                         resolver(text);
                     })
                     .catch(function (error) { rejecter(error) }))
@@ -272,7 +273,9 @@ Mrbr.System.Assembly = class {
             scriptText = prms.scriptText;
         Function(scriptText)();
     }
-    static loadedFile(fileName, text) {
+    static loadedFile(...args) {
+        const prms = args[0],
+        text = prms.text;
         return text;
     }
     static createScriptElement(...args) {
