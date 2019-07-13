@@ -6,7 +6,9 @@ global.require = require;
 new vm.Script(fs.readFileSync("./src/system/assembly.js", "utf8")).runInThisContext();
 const loadFile = function (url) {
     const fs = require("fs-extra"),
-        loader = Mrbr.System.Assembly.loader;
+        loader = Mrbr.System.Assembly.loader,
+        assembly = Mrbr.System.Assembly,
+        assemblyLoadedFile = assembly.loadedFile;
     if (loader.hasOwnProperty(url)) {
         const loadUrlObject = loader[url];
         if (loadUrlObject.loaded === true) {
@@ -28,6 +30,7 @@ const loadFile = function (url) {
                 loader[url].result = result;
                 loader[url].loaded = true;
                 delete loader[url].promise
+                result = (assembly._fileInterceptor === undefined)? assemblyLoadedFile(url,result) :assembly.fileInterceptor.intercept(assemblyLoadedFile, undefined, url, result)[1];
                 resolver(result);
             })
             .catch(function (error) { rejecter(error) })
@@ -46,7 +49,10 @@ Mrbr.System.Assembly.initialised({
     .then(function (result) {
         var entry = Mrbr.System.ManifestEntry,
             fileTypes = Mrbr.System.ManifestEntry.FileTypes;
-        Mrbr.System.Assembly.loadManifest([new entry(fileTypes.Class, "App.Utils.TerserMinifier")])
+        Mrbr.System.Assembly.loadManifest([
+            new entry(fileTypes.Class, "App.Utils.TerserMinifier"),
+            new entry(fileTypes.Class, "Mrbr.Interceptor.Interceptor")
+        ])
             .then(function (result) {
                 let terserMinifier = new App.Utils.TerserMinifier({ __dirname: __dirname });
                 terserMinifier.buildSourceDistributionList(
