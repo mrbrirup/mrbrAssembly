@@ -163,7 +163,9 @@ Mrbr.System.Assembly = class {
                         loader[url].result = xmlHttp.responseText;
                         loader[url].loaded = true;
                         delete loader[url].promise
-                        resolver(xmlHttp.responseText);
+                        const prm = { url: url, text: xmlHttp.responseText }
+                        const text = assembly._fileInterceptor === undefined ? assemblyLoadedFile(prm) : assembly.fileInterceptor.intercept(assemblyLoadedFile, undefined, prm)[1]
+                        resolver(text);
                     } else {
                         rejecter(new Error(xmlHttp.statusText));
                     }
@@ -1099,33 +1101,33 @@ Mrbr.System.Assembly = class {
 
         const assembly = Mrbr.System.Assembly;
         if (config && config.loadFile !== undefined) {
-            Mrbr.System.Assembly.loadFile = config.loadFile
+            assembly.loadFile = config.loadFile
         }
         else if (typeof fetch === 'undefined') {
-            Mrbr.System.Assembly.loadFile = Mrbr.System.Assembly.loadXmlHttpFile
+            assembly.loadFile = assembly.loadXmlHttpFile
         }
         else {
-            Mrbr.System.Assembly.loadFile = Mrbr.System.Assembly.fetchFile
+            assembly.loadFile = assembly.fetchFile
         }
         if (config && config.defaultContext) {
-            Mrbr.System.Assembly._defaultContext = config.defaultContext;
+            assembly._defaultContext = config.defaultContext;
         }
         else if (typeof window === 'undefined') {
             if (typeof globalThis !== 'undefined') {
-                Mrbr.System.Assembly._defaultContext = globalThis;
+                assembly._defaultContext = globalThis;
             }
             else if (typeof global !== 'undefined') {
-                Mrbr.System.Assembly._defaultContext = global;
+                assembly._defaultContext = global;
             }
             else {
                 throw "No global"
             }
         }
         else if (window) {
-            Mrbr.System.Assembly._defaultContext = window;
+            assembly._defaultContext = window;
         }
         else {
-            Mrbr.System.Assembly._defaultContext = undefined;
+            assembly._defaultContext = undefined;
         }
         if (config !== undefined && config !== null) {
             if (config.assemblyResolvers !== undefined && config.assemblyResolvers !== null) {
