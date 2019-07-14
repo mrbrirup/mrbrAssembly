@@ -41,6 +41,16 @@ class {
         }
         if (self._name !== undefined) { self._element.setAttribute("name", self._name) }
         self.childElements = [];
+        if (args[0].attributes) { self.setAttributes(args[0].attributes) }
+    }
+    setAttributes(attributes) {
+        const self = this,
+        selfSetAttribute = self.setAttribute;
+        const attrs = Array.isArray(attributes) ? attributes : [attributes]
+        for (let attrsCounter = 0, attrsCount = attrs.length; attrsCounter < attrsCount; attrsCounter++) {
+            const attr = attrs[attrsCounter]
+            self.setAttribute(attr.name, attr.value)
+        }
     }
     addChild(element) {
         this.childElements.push(element);
