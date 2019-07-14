@@ -24,11 +24,15 @@ class {
     constructor(...args) {
         let self = this;
         self.base(...args)
-        //self._id = args[0].id;
-        //debugger
-
-        self._elementType = args[0].elementType !== undefined ? args[0].elementType : self._elementType;
-        self._element = args[0].element === undefined ? Mrbr.Html.BaseHtml.createElement(self.elementType) : args[0].element;
+        if (args[0].elementType !== undefined) {
+            self._elementType = args[0].elementType
+        }
+        if (typeof args[0].element === 'undefined' || args[0].element === undefined) {
+            self._element = Mrbr.Html.BaseHtml.createElement(self.elementType)
+        }
+        else {
+            self._element = args[0].element;
+        }
         if (args[0].id !== undefined) {
             self._element.setAttribute("id", args[0].id)
         }

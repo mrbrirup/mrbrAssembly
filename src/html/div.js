@@ -24,10 +24,6 @@ class {
       constructor(...args) {
       let self = this;
       self._elementType = "div"
-      self.base(...args)        
-
-      
-      
-            
+      self.base(...args)             
     } 
   }

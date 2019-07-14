@@ -785,14 +785,14 @@ Mrbr.System.Assembly = class {
                     args[0].called = args[0].called || [];
                     const self = this,
                         called = args[0].called,
-                        selfConstructorPrototype = self.constructor.prototype;
-                    called.push(classType.prototype.mrbrAssemblyTypeName.replace(/\./g, "_") + "_ctor");
-                    for (let property in selfConstructorPrototype) {
-                        if (called.includes(property) || !property.endsWith("_ctor") || property === "ctor") {
-                            continue;
-                        }
-                        called.push(property);
-                        self[property](...args);
+                        constructorsToCall = [],
+                        assembly = Mrbr.System.Assembly,
+                        assemblyToObject = assembly.toObject,
+                        assemblyCallInteritance = assembly.callInheritance;
+                    called.push(`${classType.prototype.mrbrAssemblyTypeName.split(".").join("_")}_ctor`);
+                    assemblyCallInteritance(classType, called, constructorsToCall, assemblyCallInteritance, assemblyToObject)
+                    for (let constructorCounter = 0, constructorCount = constructorsToCall.length; constructorCounter < constructorCount; constructorCounter++) {
+                        self[constructorsToCall[constructorCounter]](...args);
                     }
                 },
                 configurable: false,
@@ -820,7 +820,18 @@ Mrbr.System.Assembly = class {
         return classType;
     }
 
-
+    static callInheritance(inhClassType, called, constructorsToCall, callInheritance, assemblyToObject) {
+        const propName = `${inhClassType.prototype.mrbrAssemblyTypeName.split(".").join("_")}_ctor`,
+            inhClassTypeInherits = inhClassType.inherits;
+        if (inhClassTypeInherits !== undefined && inhClassTypeInherits.length > 0) {
+            for (let inheritorCounter = 0, inheritCount = inhClassTypeInherits.length; inheritorCounter < inheritCount; inheritorCounter++) {
+                callInheritance(assemblyToObject(inhClassTypeInherits[inheritorCounter]), called, constructorsToCall, callInheritance, assemblyToObject);
+            }
+        }
+        if (called.includes(propName)) { return; }
+        called.push(propName);
+        constructorsToCall.push(propName)
+    }
 
     static listClassInheritance(keys, obj) {
         const assembly = Mrbr.System.Assembly;
