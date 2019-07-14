@@ -89,7 +89,9 @@ Mrbr.System.Assembly = class {
         return ObjectUtils.toObject(...args) !== undefined
     }
 
-    static fetchFile(url) {
+    static fetchFile(...args) {
+        const prms = args[0],
+            url = prms.url;
         const assembly = Mrbr.System.Assembly,
             loader = assembly.loader,
             assemblyLoadedFile = assembly.loadedFile;
@@ -236,7 +238,8 @@ Mrbr.System.Assembly = class {
             assemblyCreateComponent = assembly.createComponent;
         let fileName = makeFileReplacements(componentName) + ".js";
         return new Promise(function (resolve, reject) {
-            assembly.loadFile(fileName)
+            const prmfn = { url: fileName }
+            assembly.loadFile(prmfn)
                 .then(function (result) {
                     if (!(assemblyToObject(componentName) instanceof Function)) {
                         assembly._componentInterceptor === undefined ? assemblyCreateComponent({ componentName: componentName, result: result, assembly: assembly, assemblyToObject: assemblyToObject }) : assembly.componentInterceptor.intercept(assemblyCreateComponent, undefined, { componentName: componentName, result: result, assembly: assembly, assemblyToObject: assemblyToObject });
@@ -288,7 +291,7 @@ Mrbr.System.Assembly = class {
     }
     static createStyle(...args) {
         const prms = args[0],
-            fileName = prms.fileName,
+            fileName = prms.url,
             cssText = prms.cssText;
         let css = document.createElement("style");
         css.id = fileName;
@@ -303,7 +306,7 @@ Mrbr.System.Assembly = class {
     }
     static createLinkedStyle(...args) {
         const prms = args[0],
-            fileName = prms.fileName;
+            fileName = prms.url;
         let css = document.createElement('link');
         css.id = fileName
         css.type = 'text/css';
@@ -358,7 +361,8 @@ Mrbr.System.Assembly = class {
             assemblyCreateClass = assembly.createClass;
         fileName = makeFileReplacements(className) + ".js"
         return new Promise(function (resolve, reject) {
-            assembly.loadFile(fileName)
+            const prmfn = { url: fileName }
+            assembly.loadFile(prmfn)
                 .then(function (result) {
                     let obj;
                     if (!((obj = assemblyToObject(className)) instanceof Function)) {
@@ -522,7 +526,8 @@ Mrbr.System.Assembly = class {
                     break;
                 case fileTypes.File:
                     arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
-                        assemblyLoadFile(manifestEntry.entryName).then(result => resolve())
+                        const prmfn = { url: manifestEntry.entryName }
+                        assemblyLoadFile(prmfn).then(result => resolve())
                             .catch(function (error) {
                                 reject(error)
                             });
@@ -530,7 +535,8 @@ Mrbr.System.Assembly = class {
                     break;
                 case fileTypes.ScriptElement:
                     arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
-                        assemblyLoadScriptElement(manifestEntry.entryName).then(result => resolve())
+                        const prm = { url: manifestEntry.entryName }
+                        assemblyLoadScriptElement(prm).then(result => resolve())
                             .catch(function (error) {
                                 reject(error)
                             });
@@ -539,13 +545,15 @@ Mrbr.System.Assembly = class {
                 case fileTypes.Style:
                     arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
                         if (manifestEntry.entryName.toLowerCase().endsWith(".css")) {
-                            assemblyLoadStyle(manifestEntry.entryName).then(result => resolve())
+                            const prm = { url: manifestEntry.entryName }
+                            assemblyLoadStyle(prm).then(result => resolve())
                                 .catch(function (error) {
                                     reject(error)
                                 });
                         }
                         else {
-                            assemblyLoadStyle(`${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css`).then(result => resolve())
+                            const prm = { url: `${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css` }
+                            assemblyLoadStyle(prm).then(result => resolve())
                                 .catch(function (error) {
                                     reject(error)
                                 });
@@ -555,12 +563,14 @@ Mrbr.System.Assembly = class {
                 case fileTypes.LinkedStyle:
                     arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
                         if (manifestEntry.entryName.toLowerCase().endsWith(".css")) {
-                            assemblyLinkedStyle(manifestEntry.entryName).then(result => resolve()).catch(function (error) {
+                            const prm = { url: manifestEntry.entryName }
+                            assemblyLinkedStyle(prm).then(result => resolve()).catch(function (error) {
                                 reject(error)
                             });
                         }
                         else {
-                            assemblyLinkedStyle(`${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css`).then(result => resolve()).catch(function (error) {
+                            const prm = { url: `${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css` }
+                            assemblyLinkedStyle(prm).then(result => resolve()).catch(function (error) {
                                 reject(error)
                             });
                         }
@@ -579,7 +589,8 @@ Mrbr.System.Assembly = class {
         const assembly = Mrbr.System.Assembly,
             assemblyCreateScript = assembly.createScript;
         return new Promise(function (resolve, reject) {
-            assembly.loadFile(fileName)
+            const prmfn = { url: fileName }
+            assembly.loadFile(prmfn)
                 .then(result => {
                     const prm = { fileName: fileName, scriptText: result };
                     assembly._scriptInterceptor === undefined ? assemblyCreateScript(prm) : assembly.scriptInterceptor.intercept(assemblyCreateScript, undefined, prm)
@@ -605,7 +616,8 @@ Mrbr.System.Assembly = class {
         for (let fileNameCounter = 0, filename; fileNameCounter < fileNamesCount; fileNameCounter++) {
             filename = filenames[fileNameCounter];
             arrFileNames[fileNameCounter] = new Promise(function (resolve, reject) {
-                assemblyLoadFile(fileNames).then(result => resolve())
+                const prmfn = { url: filename }
+                assemblyLoadFile(prmfn).then(result => resolve())
                     .catch(function (error) {
                         reject(error)
                     })
@@ -829,11 +841,14 @@ Mrbr.System.Assembly = class {
         }
         return Promise.all(arrClasses);
     }
-    static loadConfigFile(configFileName) {
+    static loadConfigFile(...args) {
+        const prms = args[0],
+        configFileName = prms.url;
         const assembly = Mrbr.System.Assembly,
             assemblyCreateConfig = assembly.createConfig;
         return new Promise(function (resolve, reject) {
-            assembly.loadFile(configFileName)
+            const prmfn = { url: configFileName }
+            assembly.loadFile(prmfn)
                 .then(result => {
                     const prm = { configText: result }
                     assembly._configInterceptor === undefined ? assemblyCreateConfig(prm) : assembly.configInterceptor.intercept(assemblyCreateConfig, undefined, prm);
@@ -854,9 +869,10 @@ Mrbr.System.Assembly = class {
         for (let configCounter = 0, configFile; configCounter < configsCount; configCounter++) {
             configFile = configFiles[configCounter];
             configPromises[configCounter] = new Promise(function (resolve, reject) {
-                assembly
-                    .loadConfigFile(configFile)
-                    .then(function (result) { resolve(configFile) })
+                const prmfn = {url:configFile}
+                assembly                
+                    .loadConfigFile(prmfn)
+                    .then(function (result) { resolve(prmfn) })
                     .catch(function (error) {
                         reject(error)
                     })
@@ -864,13 +880,16 @@ Mrbr.System.Assembly = class {
         }
         return Promise.all(configPromises);
     }
-    static loadStyleElement(fileName) {
+    static loadStyleElement(...args) {
+        const prms = args[0],
+        fileName = prms.url;
         const assembly = Mrbr.System.Assembly,
             assemblyCreateStyle = assembly.createStyle;
         return new Promise(function (resolve, reject) {
-            assembly.loadFile(fileName)
+            const prmfn = { url: fileName }
+            assembly.loadFile(prmfn)
                 .then(result => {
-                    const prm = { fileName: fileName, cssText: result };
+                    const prm = { url: fileName, cssText: result };
                     assembly._styleInterceptor === undefined ? assemblyCreateStyle(prm) : assembly.styleInterceptor.intercept(assemblyCreateStyle, undefined, prm);
                     resolve();
                 })
@@ -888,9 +907,10 @@ Mrbr.System.Assembly = class {
         for (let fileNamesCounter = 0, fileName; fileNamesCounter < fileNamesCount; fileNamesCounter++) {
             fileName = filenames[fileNameCounter];
             fileNamePromises[fileNameCounter] = new Promise(function (resolve, reject) {
+                const prmfn = {url:filename}
                 assembly
-                    .loadStyleElement(filename)
-                    .then(function (result) { resolve(filename) })
+                    .loadStyleElement(prmfn)
+                    .then(function (result) { resolve(prmfn) })
                     .catch(function (error) {
                         reject(error)
                     })
@@ -899,11 +919,14 @@ Mrbr.System.Assembly = class {
         return Promise.all(fileNamePromises);
     }
 
-    static loadScriptElement(fileName) {
+    static loadScriptElement(...args) {
+        const prms = args[0],
+        fileName = prms.url;
         const assembly = Mrbr.System.Assembly,
             assemblyCreateScriptElement = assembly.createScriptElement;
         return new Promise(function (resolve, reject) {
-            assembly.loadFile(fileName)
+            const prmfn = { url: fileName }
+            assembly.loadFile(prmfn)
                 .then(result => {
                     const prm = { fileName: fileName, scriptText: result }
                     assembly._scriptElementInterceptor === undefined ? assemblyCreateScriptElement(prm) : assembly.scriptElementInterceptor.intercept(assemblyCreateScriptElement, undefined, prm)
@@ -933,7 +956,9 @@ Mrbr.System.Assembly = class {
         }
         return Promise.all(fileNamePromises);
     }
-    static createLinkedScriptElement(fileName) {
+    static createLinkedScriptElement(...args) {
+        const prms = args[0],
+        fileName = prms.url;
         let scr = document.createElement("script");
         scr.id = fileName;
         scr.src = fileName;
@@ -958,10 +983,12 @@ Mrbr.System.Assembly = class {
         return Promise.all(loadLinkedScriptElements);
     }
 
-    static createLinkedStyleElement(fileName) {
+    static createLinkedStyleElement(...args) {
+        const prms = args[0],
+        fileName = prms.url
         const assembly = Mrbr.System.Assembly,
             assemblyCreateLinkedStyle = assembly.createLinkedStyle;
-        const prm = { fileName: fileName };
+        const prm = { url: fileName };
         assembly._linkedStyleInterceptor === undefined ? assemblyCreateLinkedStyle(prm) : assembly.linkedStyleInterceptor.intercept(assemblyCreateLinkedStyle, undefined, prm)
         return Promise.resolve();
     }
@@ -996,7 +1023,8 @@ Mrbr.System.Assembly = class {
         fileName = makeFileReplacements(interfaceName)
         fileName += ".json"
         return new Promise(function (resolve, reject) {
-            assembly.loadFile(fileName)
+            const prmfn = { url: fileName }
+            assembly.loadFile(prmfn)
                 .then(function (result) {
                     let obj = assemblyToObject(interfaceName);
                     if (obj.mrbrInterfaceName === undefined) {
@@ -1109,7 +1137,7 @@ Mrbr.System.Assembly = class {
         assembly.setArrayPolyFills();
         return new Promise(function (resolve, reject) {
             assembly
-                .loadFile(Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Utils.Parser.tokenCtor") + ".json")
+                .loadFile({url:Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Utils.Parser.tokenCtor") + ".json"})
                 .then(() => assembly.loadClass("Mrbr.Utils.Parser.Tokeniser"))
                 .then(() => assembly.loadClass("Mrbr.System.Object"))
                 .then(() => assembly.loadClass("Mrbr.Interceptor.Interceptor"))

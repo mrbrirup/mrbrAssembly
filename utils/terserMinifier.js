@@ -91,7 +91,6 @@ class {
                             fileExists = true;
                             let destContent = fs.readFileSync(entry.dest, "utf8")
                             fileDiff = (outFileContent !== destContent);
-
                         }
                         if (!fileExists || fileDiff) {
                             console.log(`File change written: ${entry.dest}`);
@@ -108,12 +107,28 @@ class {
                 }
             }
             else if (entry.src.endsWith(".json")) {
-                const content = fs.readFileSync(entry.src, "utf8")
-                fs.outputFileSync(entry.dest, JSON.stringify(JSON.parse(content)), function (err) {
-                    if (err) {
-                        console.log("x   Error: ", err)
+                const content = fs.readFileSync(entry.src, "utf8")            
+                let outFileContent = JSON.stringify(JSON.parse(content))
+                let fileExists = false;
+                let fileDiff = true;
+                fs.stat(entry.dest, function (err, stat) {
+                    if (err == null) {
+                        fileExists = true;
+                        let destContent = fs.readFileSync(entry.dest, "utf8")
+                        fileDiff = (outFileContent !== destContent);
                     }
-                })
+                    if (!fileExists || fileDiff) {
+                        console.log(`File change written: ${entry.dest}`);
+                        fs.outputFileSync(entry.dest, outFileContent, function (err) {
+                            if (err) {
+                                console.log("x   Error: ", err)
+                            }
+                        })
+                    }
+                    else {
+                        console.log(`File unchanged: ${entry.dest}`);
+                    }
+                });
             }
         })
     }

@@ -4,7 +4,9 @@ const exec = require("./exec"),
     fs = require("fs");
 global.require = require;
 new vm.Script(fs.readFileSync("./src/system/assembly.js", "utf8")).runInThisContext();
-const loadFile = function (url) {
+const loadFile = function (...args) {
+    const prms = args[0],
+    url = prms.url;
     const fs = require("fs-extra"),
         loader = Mrbr.System.Assembly.loader,
         assembly = Mrbr.System.Assembly,
