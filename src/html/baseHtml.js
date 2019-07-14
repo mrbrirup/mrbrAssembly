@@ -76,8 +76,8 @@ class {
     getAttribute(name) {
         return this.element.getAttribute(name);
     }
-    get elementType() { return this._elementType; }
-    set elementType(value) { this._elementType = value; return this; }
+    // get elementType() { return this._elementType; }
+    // set elementType(value) { this._elementType = value; return this; }
     get element() { return this._element; }
     set element(value) { this._element = value; return this; }
     // A unique identifier for the element.

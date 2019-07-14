@@ -26,4 +26,6 @@ class {
       self._elementType = "meta"
       self.base(...args)        
     }     
+    get elementType(){return this._elementType ? this._elementType :"meta" ;}
+    set elementType(value){this._elementType = value;}
   }

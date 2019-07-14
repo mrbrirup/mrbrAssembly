@@ -27,6 +27,9 @@ class {
     self.base(...args)
 
   }
+  get elementType(){return this._elementType ? this._elementType :"meter" ;}
+  set elementType(value){this._elementType = value;}
+
   get value() { return this.getAttribute("value"); }
   set value(val) { this.setAttribute("value", val); }
   get max() { return this.getAttribute("max"); }

@@ -26,6 +26,9 @@ class {
       self._elementType = "colgroup"
       self.base(...args)        
     } 
+    get elementType(){return this._elementType ? this._elementType :"colgroup" ;}
+    set elementType(value){this._elementType = value;}
+
     get span(){return this.getAttribute("span");}
     set span(value){this.setAttribute("span" , value);}
   }

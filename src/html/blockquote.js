@@ -27,6 +27,9 @@ class {
       self.base(...args)        
       
     } 
+    get elementType(){return this._elementType ? this._elementType :"blockquote" ;}
+    set elementType(value){this._elementType = value;}
+
     get cite() { return this.getAttribute("cite"); }
     set cite(value) { this.setAttribute("cite", value); }
   }

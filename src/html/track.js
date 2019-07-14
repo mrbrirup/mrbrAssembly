@@ -25,9 +25,8 @@ class {
       let self = this;
       self._elementType = "track"
       self.base(...args)        
-
-      
-      
-            
     } 
+    get elementType(){return this._elementType ? this._elementType :"track" ;}
+    set elementType(value){this._elementType = value;}
+
   }

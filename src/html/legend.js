@@ -25,9 +25,8 @@ class {
       let self = this;
       self._elementType = "legend"
       self.base(...args)        
-
-      
-      
-            
     } 
+    get elementType(){return this._elementType ? this._elementType :"legend" ;}
+    set elementType(value){this._elementType = value;}
+
   }

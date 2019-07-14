@@ -26,6 +26,8 @@ class {
     self._elementType = "keygen"
     self.base(...args)
   }
+  get elementType(){return this._elementType ? this._elementType :"keygen" ;}
+  set elementType(value){this._elementType = value;}
 
   get challenge() { return this.getAttribute("challenge"); }
   set challenge(value) { this.setAttribute("challenge", value); }

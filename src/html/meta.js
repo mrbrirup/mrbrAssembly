@@ -30,6 +30,9 @@ class {
 
 
   }
+  get elementType(){return this._elementType ? this._elementType :"meta" ;}
+  set elementType(value){this._elementType = value;}
+
   get content() { return this.getAttribute("content"); }
   set content(value) { this.setAttribute("content" , value); }
 }

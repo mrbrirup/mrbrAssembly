@@ -28,6 +28,9 @@ class {
       self.setAttribute("id", self.id);
       self.setAttribute("name", self.name);
     }     
+    get elementType(){return this._elementType ? this._elementType :"html" ;}
+    set elementType(value){this._elementType = value;}
+
     get manifest(){return this.getAttribute("manifest");}
     set manifest(value){this.setAttribute("manifest" , value);}
   }

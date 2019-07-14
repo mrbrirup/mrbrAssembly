@@ -26,6 +26,9 @@ class {
       self._elementType = "details"
       self.base(...args)        
     } 
+    get elementType(){return this._elementType ? this._elementType :"details" ;}
+    set elementType(value){this._elementType = value;}
+
     get open() { return this.getAttribute("open"); }
     set open(value) { this.setAttribute("open", value); }
   }

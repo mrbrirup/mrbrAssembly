@@ -1,3 +1,3 @@
 /*mrbrAssembly 
 Copyright 2019 Martin Ruppersburg
-Licensed under MIT (https://github.com/mrbrirup/mrbrAssembly/blob/master/licence.md)*/class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...t){this._elementType="base",this.base(...t)}get href(){return this.getAttribute("href")}set href(t){this.setAttribute("href",t)}}
+Licensed under MIT (https://github.com/mrbrirup/mrbrAssembly/blob/master/licence.md)*/class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...e){this._elementType="base",this.base(...e)}get elementType(){return this._elementType?this._elementType:"href"}set elementType(e){this._elementType=e}get href(){return this.getAttribute("href")}set href(e){this.setAttribute("href",e)}}

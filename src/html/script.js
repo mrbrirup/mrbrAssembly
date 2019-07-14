@@ -26,6 +26,8 @@ class {
     self._elementType = "script"
     self.base(...args)
   }
+  get elementType(){return this._elementType ? this._elementType :"script" ;}
+  set elementType(value){this._elementType = value;}
 
 
   get type() { return this.getAttribute("type"); }

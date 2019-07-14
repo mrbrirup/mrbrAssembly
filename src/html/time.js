@@ -27,6 +27,9 @@ class {
     self.base(...args)
 
   }
+  get elementType(){return this._elementType ? this._elementType :"time" ;}
+  set elementType(value){this._elementType = value;}
+
   get datetime() { return this.getAttribute("datetime"); }
   set datetime(value) { this.setAttribute("datetime", value); }
 }

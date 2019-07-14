@@ -27,7 +27,9 @@ class {
       self.base(...args)        
       self.setAttribute("charset", args[0].charset ? args[0].charset : 'UTF-8')      
     } 
-    
+    get elementType(){return this._elementType ? this._elementType :"meta" ;}
+    set elementType(value){this._elementType = value;}
+
     get charset(){return this.getAttribute("charset");}
     set charset(value){this.setAttribute("charset", value);}
   }

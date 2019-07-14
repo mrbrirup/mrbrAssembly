@@ -26,6 +26,9 @@ class {
       self._elementType = "textarea"
       self.base(...args)        
     } 
+    get elementType(){return this._elementType ? this._elementType :"textarea" ;}
+    set elementType(value){this._elementType = value;}
+
     get disabled() { return this.getAttribute("disabled"); }
     set disabled(value) { this.setAttribute("disabled", value); }
     get form() { return this.getAttribute("form"); }

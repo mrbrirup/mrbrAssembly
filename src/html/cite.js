@@ -26,5 +26,7 @@ class {
     self._elementType = "cite"
     self.base(...args)
   }
+  get elementType(){return this._elementType ? this._elementType :"cite" ;}
+  set elementType(value){this._elementType = value;}
 
 }

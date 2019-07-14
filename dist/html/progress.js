@@ -1,3 +1,3 @@
 /*mrbrAssembly 
 Copyright 2019 Martin Ruppersburg
-Licensed under MIT (https://github.com/mrbrirup/mrbrAssembly/blob/master/licence.md)*/class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...t){this._elementType="progress",this.base(...t)}get value(){return this.getAttribute("value")}set value(t){this.setAttribute("value",t)}get max(){return this.getAttribute("max")}set max(t){this.setAttribute("max",t)}}
+Licensed under MIT (https://github.com/mrbrirup/mrbrAssembly/blob/master/licence.md)*/class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...e){this._elementType="progress",this.base(...e)}get elementType(){return this._elementType?this._elementType:"progress"}set elementType(e){this._elementType=e}get value(){return this.getAttribute("value")}set value(e){this.setAttribute("value",e)}get max(){return this.getAttribute("max")}set max(e){this.setAttribute("max",e)}}

@@ -26,6 +26,9 @@ class {
       self._elementType = "option"
       self.base(...args)        
     } 
+    get elementType(){return this._elementType ? this._elementType :"option" ;}
+    set elementType(value){this._elementType = value;}
+
     get disabled() { return this.getAttribute("disabled"); }
     set disabled(value) { this.setAttribute("disabled", value); }
     get label() { return this.getAttribute("label"); }

@@ -28,6 +28,9 @@ class {
       self.setAttribute("id", self.id);
       self.setAttribute("name", self.name);
     } 
+    get elementType(){return this._elementType ? this._elementType :"menu" ;}
+    set elementType(value){this._elementType = value;}
+
     get type(){return this.getAttribute("type");}
     set type(value){this.setAttribute("type" , value);}
     get label(){return this.getAttribute("label");}

@@ -26,6 +26,9 @@ class {
     self._elementType = "col"
     self.base(...args)
   }
+  get elementType(){return this._elementType ? this._elementType :"col" ;}
+  set elementType(value){this._elementType = value;}
+
   get span() { return this.getAttribute("span"); }
   set span(value) { this.setAttribute("span", value); }
 }

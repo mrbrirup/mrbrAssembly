@@ -26,4 +26,6 @@ class {
       self._elementType = "article"
       self.base(...args)        
     } 
+    get elementType(){return this._elementType ? this._elementType :"article" ;}
+    set elementType(value){this._elementType = value;}
   }

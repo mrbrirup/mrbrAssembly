@@ -25,9 +25,8 @@ class {
       let self = this;
       self._elementType = "video"
       self.base(...args)        
-
-      
-      
-            
     } 
+    get elementType(){return this._elementType ? this._elementType :"video" ;}
+    set elementType(value){this._elementType = value;}
+
   }

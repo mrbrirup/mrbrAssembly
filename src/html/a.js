@@ -26,7 +26,8 @@ class {
     self._elementType = "a"
     self.base(...args)
   }
-
+  get elementType(){return this._elementType ? this._elementType :"a" ;}
+  set elementType(value){this._elementType = value;}
   get href() { return this.getAttribute("href"); }
   set href(value) { this.setAttribute("href", value); }
 

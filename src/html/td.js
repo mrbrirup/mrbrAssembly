@@ -26,6 +26,9 @@ class {
     self._elementType = "td"
     self.base(...args)
   }
+  get elementType(){return this._elementType ? this._elementType :"td" ;}
+  set elementType(value){this._elementType = value;}
+
   get colspan() { return this.getAttribute("colspan"); }
   set colspan(value) { this.setAttribute("colspan", value); }
   get rowspan() { return this.getAttribute("rowspan"); }

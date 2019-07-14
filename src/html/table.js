@@ -26,6 +26,9 @@ class {
     self._elementType = "table"
     self.base(...args)
   }
+  get elementType(){return this._elementType ? this._elementType :"table" ;}
+  set elementType(value){this._elementType = value;}
+
   get headers() { return this.getAttribute("border"); }
   set headers(value) { this.setAttribute("border", value); }
 }

@@ -25,9 +25,8 @@ class {
       let self = this;
       self._elementType = "datalist"
       self.base(...args)        
-
-      
-      
-            
     } 
+    get elementType(){return this._elementType ? this._elementType :"datalist" ;}
+    set elementType(value){this._elementType = value;}
+
   }

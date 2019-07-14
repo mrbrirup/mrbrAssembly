@@ -26,6 +26,9 @@ class {
     self._elementType = "form"
     self.base(...args)
   }
+  get elementType(){return this._elementType ? this._elementType :"form" ;}
+  set elementType(value){this._elementType = value;}
+
   get action() { return this.getAttribute("action"); }
   set action(value) { this.setAttribute("action", value); }
   get method() { return this.getAttribute("method"); }

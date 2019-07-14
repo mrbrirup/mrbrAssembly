@@ -26,6 +26,8 @@ class {
       self._elementType = "li"
       self.base(...args)        
     } 
+    get elementType(){return this._elementType ? this._elementType :"li" ;}
+    set elementType(value){this._elementType = value;}
 
     get value(){return this.getAttribute("value");}
     set value(val){this.setAttribute("value" , val);}

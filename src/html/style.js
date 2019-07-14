@@ -26,6 +26,8 @@ class {
     self._elementType = "style"
     self.base(...args)
   }
+  get elementType(){return this._elementType ? this._elementType :"style" ;}
+  set elementType(value){this._elementType = value;}
 
   get type() { return this.getAttribute("type"); }
   set type(value) { this.setAttribute("type", value); }

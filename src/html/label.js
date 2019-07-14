@@ -26,6 +26,9 @@ class {
     self._elementType = "label"
     self.base(...args)
   }
+  get elementType(){return this._elementType ? this._elementType :"label" ;}
+  set elementType(value){this._elementType = value;}
+
   get for() { return this.getAttribute("for"); }
   set for(value) { this.setAttribute("for", value); }
   get form() { return this.getAttribute("form"); }

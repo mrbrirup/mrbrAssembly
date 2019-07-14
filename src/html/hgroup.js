@@ -25,9 +25,7 @@ class {
       let self = this;
       self._elementType = "hgroup"
       self.base(...args)        
-
-      
-      
-            
     } 
+    get elementType(){return this._elementType ? this._elementType :"hgroup" ;}
+    set elementType(value){this._elementType = value;}
   }

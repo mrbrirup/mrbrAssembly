@@ -24,10 +24,8 @@ class {
       constructor(...args) {
       let self = this;
       self._elementType = "header"
-      self.base(...args)        
-
-      
-      
-            
+      self.base(...args)              
     } 
+    get elementType(){return this._elementType ? this._elementType :"header" ;}
+    set elementType(value){this._elementType = value;}
   }

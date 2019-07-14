@@ -26,6 +26,9 @@ class {
     self._elementType = "progress"
     self.base(...args)
   }
+  get elementType(){return this._elementType ? this._elementType :"progress" ;}
+  set elementType(value){this._elementType = value;}
+
   get value() { return this.getAttribute("value"); }
   set value(val) { this.setAttribute("value", val); }
   get max() { return this.getAttribute("max"); }

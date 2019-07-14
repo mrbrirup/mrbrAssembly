@@ -26,6 +26,8 @@ class {
     self._elementType = "ol"
     self.base(...args)
   }
+  get elementType(){return this._elementType ? this._elementType :"ol" ;}
+  set elementType(value){this._elementType = value;}
 
   get start() { return this.getAttribute("start"); }
   set start(value) { this.setAttribute("start", value); }

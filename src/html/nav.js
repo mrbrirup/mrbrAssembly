@@ -25,5 +25,7 @@ class {
       let self = this;
       self._elementType = "nav"
       self.base(...args)      
-    } 
+    }     
+    get elementType(){return this._elementType ? this._elementType : "nav";}
+    set elementType(value){this._elementType = value; return this;}
   }

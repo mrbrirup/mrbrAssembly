@@ -26,4 +26,6 @@ class {
       self._elementType = "audio"
       self.base(...args)        
     } 
+    get elementType(){return this._elementType ? this._elementType :"audio" ;}
+    set elementType(value){this._elementType = value;}
   }

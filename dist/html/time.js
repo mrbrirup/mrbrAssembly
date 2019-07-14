@@ -1,3 +1,3 @@
 /*mrbrAssembly 
 Copyright 2019 Martin Ruppersburg
-Licensed under MIT (https://github.com/mrbrirup/mrbrAssembly/blob/master/licence.md)*/class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...t){this._elementType="time",this.base(...t)}get datetime(){return this.getAttribute("datetime")}set datetime(t){this.setAttribute("datetime",t)}}
+Licensed under MIT (https://github.com/mrbrirup/mrbrAssembly/blob/master/licence.md)*/class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...e){this._elementType="time",this.base(...e)}get elementType(){return this._elementType?this._elementType:"time"}set elementType(e){this._elementType=e}get datetime(){return this.getAttribute("datetime")}set datetime(e){this.setAttribute("datetime",e)}}

@@ -27,4 +27,6 @@ class {
       self.base(...args)        
       self.setAttribute("http-equiv", 'default-style')      
     } 
+    get elementType(){return this._elementType ? this._elementType :"meta" ;}
+    set elementType(value){this._elementType = value;}
   }

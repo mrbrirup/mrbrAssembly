@@ -20,14 +20,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 class {
-    static get inherits() { return ["Mrbr.Html.BaseHtml"]; }
+    static get inherits() { return ["Mrbr.Html.Button"]; }
       constructor(...args) {
       let self = this;
-      self._elementType = "button"
       self.base(...args)        
 
       
       self.frameElement.addAttribute("type", "reset")
             
     } 
+
   }

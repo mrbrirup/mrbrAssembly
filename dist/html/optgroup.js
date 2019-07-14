@@ -1,3 +1,3 @@
 /*mrbrAssembly 
 Copyright 2019 Martin Ruppersburg
-Licensed under MIT (https://github.com/mrbrirup/mrbrAssembly/blob/master/licence.md)*/class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...t){this._elementType="optgroup",this.base(...t)}get disabled(){return this.getAttribute("disabled")}set disabled(t){this.setAttribute("disabled",t)}get label(){return this.getAttribute("label")}set label(t){this.setAttribute("label",t)}}
+Licensed under MIT (https://github.com/mrbrirup/mrbrAssembly/blob/master/licence.md)*/class {static get inherits(){return["Mrbr.Html.BaseHtml"]}constructor(...e){this._elementType="optgroup",this.base(...e)}get elementType(){return this._elementType?this._elementType:"optgroup"}set elementType(e){this._elementType=e}get disabled(){return this.getAttribute("disabled")}set disabled(e){this.setAttribute("disabled",e)}get label(){return this.getAttribute("label")}set label(e){this.setAttribute("label",e)}}

@@ -28,6 +28,8 @@ class {
     self.setAttribute("id", self.id);
     self.setAttribute("name", self.name);
   }
+  get elementType(){return this._elementType ? this._elementType :"link" ;}
+  set elementType(value){this._elementType = value;}
 
   get href() { return this.getAttribute("href"); }
   set href(value) { this.setAttribute("href", value); }
