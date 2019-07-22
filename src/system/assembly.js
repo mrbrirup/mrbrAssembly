@@ -361,11 +361,15 @@ Mrbr.System.Assembly = class {
      */
     static loadClass(...args) {
         const prms = args[0];
+        let classAlias;
         let className;
         if (typeof prms === 'string') {
+            classAlias = prms;
             className = prms;
         }
-        else {
+        else if(Mrbr.System.Object())
+        {
+            classAlias = prms.aliasName;
             className = prms.className;
         }
         let classNames = [className],
@@ -380,19 +384,19 @@ Mrbr.System.Assembly = class {
             assemblyCreateClass = assembly.createClass;
         fileName = makeFileReplacements(className) + ".js"
         return new Promise(function (resolve, reject) {
-            const prmfn = { url: fileName }
+            const prmfn = { url: fileName, aliasName: aliasName }
             assembly.loadFile(prmfn)
                 .then(function (result) {
                     let obj;
-                    if (!((obj = assemblyToObject(className)) instanceof Function)) {
-                        const prm = { className: className, result: result, assembly: assembly, assemblyToObject: assemblyToObject };
+                    if (!((obj = assemblyToObject(classAlias)) instanceof Function)) {
+                        const prm = { className: classAlias, result: result, assembly: assembly, assemblyToObject: assemblyToObject };
                         assembly._classInterceptor === undefined ? assemblyCreateClass(prm) : assembly.classInterceptor.intercept(assemblyCreateClass, undefined, prm)
                     }
                 })
                 .catch(function (error) {
                     if (error instanceof Error) {
                         //reject(new Mrbr.System.Exception({ name: "Exception", error: error, source: `${assembly.mrbrAssemblyTypeName}:loadClass`, info: `className: ${className}` }))
-                        reject({ name: "Exception", error: error, source: `${assembly.mrbrAssemblyTypeName}:loadClass`, info: `className: ${className}` })
+                        reject({ name: "Exception", error: error, source: `${assembly.mrbrAssemblyTypeName}:loadClass`, info: `className: ${classAlias}` })
                     }
                     reject(error)
                 })
