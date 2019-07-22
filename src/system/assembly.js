@@ -90,8 +90,27 @@ Mrbr.System.Assembly = class {
     }
 
     static fetchFile(...args) {
-        const prms = args[0],
+        let prms = args[0],
+            url = prms.url,
+            fileAlias;
+        if (typeof prms === 'string') {
+            fileAlias = prms;
+            url = prms;
+        }
+        else if (typeof prms === 'object') {
             url = prms.url;
+            fileAlias = prms.alias ? prms.alias : url;
+        }
+        else if (Mrbr.System.Object.typeMatch(prms, "Mrbr.System.ManifestEntry")) {
+            fileAlias = prms.alias;
+            url = prms.url;
+        }
+        else {
+            throw "Unknown class entry request"
+        }
+
+
+
         const assembly = Mrbr.System.Assembly,
             loader = assembly.loader,
             assemblyLoadedFile = assembly.loadedFile;
@@ -126,6 +145,7 @@ Mrbr.System.Assembly = class {
                     .catch(function (error) { rejecter(error) }))
                 .catch(function (error) { rejecter(error) })
             loader[url] = { promise: prm, result: undefined, loaded: false };
+            //if (fileAlias !== url) {                loader[fileAlias] = loader[url];            }
             return prm;
         }
     }
@@ -367,10 +387,16 @@ Mrbr.System.Assembly = class {
             classAlias = prms;
             className = prms;
         }
-        else if(Mrbr.System.Object())
-        {
-            classAlias = prms.aliasName;
-            className = prms.className;
+        else if (typeof prms === 'object') {
+            className = prms.entryName;// prms.className;
+            classAlias = prms.alias ? prms.alias : prms.entryName;
+        }
+        else if (Mrbr.System.Object.typeMatch(prms, "Mrbr.System.ManifestEntry")) {
+            classAlias = prms.alias;
+            className = prms.entryName;//className;
+        }
+        else {
+            throw "Unknown class entry request"
         }
         let classNames = [className],
             fileName = className;
@@ -384,13 +410,17 @@ Mrbr.System.Assembly = class {
             assemblyCreateClass = assembly.createClass;
         fileName = makeFileReplacements(className) + ".js"
         return new Promise(function (resolve, reject) {
-            const prmfn = { url: fileName, aliasName: aliasName }
+            const prmfn = { url: fileName, alias: classAlias }
             assembly.loadFile(prmfn)
                 .then(function (result) {
                     let obj;
+                    if (!((obj = assemblyToObject(className)) instanceof Function)) {
+                        const prm = { className: className, result: result, assembly: assembly, assemblyToObject: assemblyToObject };
+                        assembly._classInterceptor === undefined ? assemblyCreateClass(prm) : assembly.classInterceptor.intercept(assemblyCreateClass, undefined, prm)                                        
+                    }
                     if (!((obj = assemblyToObject(classAlias)) instanceof Function)) {
                         const prm = { className: classAlias, result: result, assembly: assembly, assemblyToObject: assemblyToObject };
-                        assembly._classInterceptor === undefined ? assemblyCreateClass(prm) : assembly.classInterceptor.intercept(assemblyCreateClass, undefined, prm)
+                        assembly._classInterceptor === undefined ? assemblyCreateClass(prm) : assembly.classInterceptor.intercept(assemblyCreateClass, undefined, prm)                                        
                     }
                 })
                 .catch(function (error) {
@@ -522,7 +552,8 @@ Mrbr.System.Assembly = class {
             switch (manifestEntry.fileType) {
                 case fileTypes.Class:
                     arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
-                        const prmfn = { className: manifestEntry.entryName }
+                        //const prmfn = { className: manifestEntry.entryName }
+                        const prmfn = manifestEntry
                         assemblyLoadClass(prmfn)
                             .then(result => resolve())
                             .catch(function (error) {
