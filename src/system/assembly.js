@@ -250,14 +250,32 @@ Mrbr.System.Assembly = class {
      */
     static get loader() { return Mrbr.System.Assembly._loader; }
     static loadComponent(...args) {
-        let componentName;
+        let componentName,
+            componentAlias;
         const prms = args[0];
+
         if (typeof prms === 'string') {
-            componentName = prms
+            componentAlias = prms;
+            componentName = prms;
+        }
+        else if (typeof prms === 'object') {
+            componentName = prms.entryName;// prms.className;
+            componentAlias = prms.alias ? prms.alias : prms.entryName;
+        }
+        else if (Mrbr.System.Object.typeMatch(prms, "Mrbr.System.ManifestEntry")) {
+            componentAlias = prms.alias;
+            componentName = prms.entryName;//className;
         }
         else {
-            componentName = prms.componentName;
+            throw "Unknown class entry request"
         }
+        // if (typeof prms === 'string') {
+        //     componentName = prms
+        // }
+        // else {
+        //     componentName = prms.componentName;
+        // }
+
         const assembly = Mrbr.System.Assembly,
             assemblyToObject = assembly.toObject,
             makeFileReplacements = Mrbr.System.Assembly.resolveNamespaceToFile,
@@ -268,11 +286,15 @@ Mrbr.System.Assembly = class {
             assemblyCreateComponent = assembly.createComponent;
         let fileName = makeFileReplacements(componentName) + ".js";
         return new Promise(function (resolve, reject) {
-            const prmfn = { url: fileName }
+            const prmfn = { url: fileName, alias: componentAlias }
             assembly.loadFile(prmfn)
                 .then(function (result) {
                     if (!(assemblyToObject(componentName) instanceof Function)) {
                         const prm = { componentName: componentName, result: result, assembly: assembly, assemblyToObject: assemblyToObject };
+                        assembly._componentInterceptor === undefined ? assemblyCreateComponent(prm) : assembly.componentInterceptor.intercept(assemblyCreateComponent, undefined, prm);
+                    }
+                    if (!(assemblyToObject(componentAlias) instanceof Function)) {
+                        const prm = { componentName: componentAlias, result: result, assembly: assembly, assemblyToObject: assemblyToObject };
                         assembly._componentInterceptor === undefined ? assemblyCreateComponent(prm) : assembly.componentInterceptor.intercept(assemblyCreateComponent, undefined, prm);
                     }
                     resolve();
@@ -416,11 +438,11 @@ Mrbr.System.Assembly = class {
                     let obj;
                     if (!((obj = assemblyToObject(className)) instanceof Function)) {
                         const prm = { className: className, result: result, assembly: assembly, assemblyToObject: assemblyToObject };
-                        assembly._classInterceptor === undefined ? assemblyCreateClass(prm) : assembly.classInterceptor.intercept(assemblyCreateClass, undefined, prm)                                        
+                        assembly._classInterceptor === undefined ? assemblyCreateClass(prm) : assembly.classInterceptor.intercept(assemblyCreateClass, undefined, prm)
                     }
                     if (!((obj = assemblyToObject(classAlias)) instanceof Function)) {
                         const prm = { className: classAlias, result: result, assembly: assembly, assemblyToObject: assemblyToObject };
-                        assembly._classInterceptor === undefined ? assemblyCreateClass(prm) : assembly.classInterceptor.intercept(assemblyCreateClass, undefined, prm)                                        
+                        assembly._classInterceptor === undefined ? assemblyCreateClass(prm) : assembly.classInterceptor.intercept(assemblyCreateClass, undefined, prm)
                     }
                 })
                 .catch(function (error) {
@@ -563,7 +585,7 @@ Mrbr.System.Assembly = class {
                     break;
                 case fileTypes.Component:
                     arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
-                        const prmfn = { componentName: manifestEntry.entryName }
+                        const prmfn = manifestEntry;// { componentName: manifestEntry.entryName }
                         assembly.loadComponent(prmfn)
                             .then(result => resolve())
                             .catch(function (error) {
