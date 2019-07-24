@@ -29,11 +29,14 @@ class {
      * @param {string} fileType One of ManifestEntry.FileTypes
      * @param {string} entryName File name or className to load
      */
-    constructor(fileType, entryName, alias) {
+    constructor(fileType, entryName, alias, url) {
         this._fileType = fileType;
         this._entryName = entryName;
         this._alias = alias || entryName;
+        this._url = url;
     }
+    get url() { return this._url; }
+    set url(value) { this._url = value; }
     /**
      * @param {string} value file type to load, one of ManifestEntry.FileTypes
      * @returns {string} file type to load, one of ManifestEntry.FileTypes
@@ -50,8 +53,8 @@ class {
      * File types that can be processed
      * @returns {Object:Class|Script|File} Object of FileType values
      */
-    get alias(){ return this._alias;}
-    set alias(value){ this._alias = value;}
+    get alias() { return this._alias; }
+    set alias(value) { this._alias = value; }
     static get FileTypes() {
         return {
             Class: "class",
@@ -61,9 +64,9 @@ class {
             Config: "config",
             ScriptElement: "scriptElement",
             LinkedScript: "linkedScript",
-            Style:"styleElement",
-            LinkedStyle:"linkedStyle",
-            Component:"component"
+            Style: "styleElement",
+            LinkedStyle: "linkedStyle",
+            Component: "component"
         }
     }
 }

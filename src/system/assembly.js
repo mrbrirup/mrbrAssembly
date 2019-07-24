@@ -251,7 +251,8 @@ Mrbr.System.Assembly = class {
     static get loader() { return Mrbr.System.Assembly._loader; }
     static loadComponent(...args) {
         let componentName,
-            componentAlias;
+            componentAlias,
+            isManifestEntry = false;
         const prms = args[0];
 
         if (typeof prms === 'string') {
@@ -259,22 +260,17 @@ Mrbr.System.Assembly = class {
             componentName = prms;
         }
         else if (typeof prms === 'object') {
-            componentName = prms.entryName;// prms.className;
+            componentName = prms.entryName;
             componentAlias = prms.alias ? prms.alias : prms.entryName;
         }
         else if (Mrbr.System.Object.typeMatch(prms, "Mrbr.System.ManifestEntry")) {
             componentAlias = prms.alias;
-            componentName = prms.entryName;//className;
+            componentName = prms.entryName;
+            isManifestEntry = true;
         }
         else {
-            throw "Unknown class entry request"
+            throw "Unknown component entry request"
         }
-        // if (typeof prms === 'string') {
-        //     componentName = prms
-        // }
-        // else {
-        //     componentName = prms.componentName;
-        // }
 
         const assembly = Mrbr.System.Assembly,
             assemblyToObject = assembly.toObject,
@@ -286,8 +282,17 @@ Mrbr.System.Assembly = class {
             assemblyCreateComponent = assembly.createComponent;
         let fileName = makeFileReplacements(componentName) + ".js";
         return new Promise(function (resolve, reject) {
-            const prmfn = { url: fileName, alias: componentAlias }
-            assembly.loadFile(prmfn)
+            let manifestEntry;
+            if (isManifestEntry) {
+                prms.url = fileName;
+                prms.alias = componentAlias;
+                manifestEntry = prms;
+            }
+            else {
+                manifestEntry = new Mrbr.System.ManifestEntry(Mrbr.System.ManifestEntry.FileTypes.Component, componentName, componentAlias, url);
+            }
+            //const prmfn = isManifestEntry = true ? Mrbr.System.Manifest{ url: fileName, alias: componentAlias }
+            assembly.loadFile(manifestEntry)
                 .then(function (result) {
                     if (!(assemblyToObject(componentName) instanceof Function)) {
                         const prm = { componentName: componentName, result: result, assembly: assembly, assemblyToObject: assemblyToObject };
@@ -404,7 +409,8 @@ Mrbr.System.Assembly = class {
     static loadClass(...args) {
         const prms = args[0];
         let classAlias;
-        let className;
+        let className,
+            isManifestEntry = false;
         if (typeof prms === 'string') {
             classAlias = prms;
             className = prms;
@@ -416,6 +422,7 @@ Mrbr.System.Assembly = class {
         else if (Mrbr.System.Object.typeMatch(prms, "Mrbr.System.ManifestEntry")) {
             classAlias = prms.alias;
             className = prms.entryName;//className;
+            isManifestEntry = true;
         }
         else {
             throw "Unknown class entry request"
@@ -432,8 +439,17 @@ Mrbr.System.Assembly = class {
             assemblyCreateClass = assembly.createClass;
         fileName = makeFileReplacements(className) + ".js"
         return new Promise(function (resolve, reject) {
-            const prmfn = { url: fileName, alias: classAlias }
-            assembly.loadFile(prmfn)
+            let manifestEntry;
+            if (isManifestEntry) {
+                prms.url = fileName;
+                prms.alias = classAlias;
+                manifestEntry = prms;
+            }
+            else {
+                manifestEntry = new Mrbr.System.ManifestEntry(Mrbr.System.ManifestEntry.FileTypes.Class, className, classAlias, url);
+            }
+            //const prmfn = { url: fileName, alias: classAlias }
+            assembly.loadFile(manifestEntry)
                 .then(function (result) {
                     let obj;
                     if (!((obj = assemblyToObject(className)) instanceof Function)) {
