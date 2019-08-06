@@ -289,7 +289,7 @@ Mrbr.System.Assembly = class {
                 manifestEntry = prms;
             }
             else {
-                manifestEntry = new Mrbr.System.ManifestEntry(Mrbr.System.ManifestEntry.FileTypes.Component, componentName, componentAlias, url);
+                manifestEntry = new Mrbr.System.ManifestEntry(Mrbr.System.ManifestEntry.FileTypes.Component, componentName, componentAlias, fileName);
             }
             //const prmfn = isManifestEntry = true ? Mrbr.System.Manifest{ url: fileName, alias: componentAlias }
             assembly.loadFile(manifestEntry)
@@ -445,8 +445,16 @@ Mrbr.System.Assembly = class {
                 prms.alias = classAlias;
                 manifestEntry = prms;
             }
-            else {
-                manifestEntry = new Mrbr.System.ManifestEntry(Mrbr.System.ManifestEntry.FileTypes.Class, className, classAlias, url);
+            else if(typeof Mrbr.System.ManifestEntry !== 'undefined') {
+                manifestEntry = new Mrbr.System.ManifestEntry(Mrbr.System.ManifestEntry.FileTypes.Class, className, classAlias, fileName);
+            }
+            else{
+                manifestEntry = {
+                    fileType: "class",                    
+                    entryName: className, 
+                    alias:  classAlias, 
+                    url: fileName
+                }
             }
             //const prmfn = { url: fileName, alias: classAlias }
             assembly.loadFile(manifestEntry)

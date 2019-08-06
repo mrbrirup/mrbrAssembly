@@ -20,8 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 class {
-    constructor(...args) {
-        this.base(...args);
+    constructor() {
         this._events = [];
     }
     get events() { return this._events; }

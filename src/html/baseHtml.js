@@ -34,12 +34,12 @@ class {
             self._element = args[0].element;
         }
         if (args[0].id !== undefined) {
-            self._element.setAttribute("id", args[0].id)
+            self._element.id = args[0].id
         }
         else if (args[0].element !== undefined) {
             self._id = self._element.getAttribute("id")
         }
-        if (self._name !== undefined) { self._element.setAttribute("name", self._name) }
+        if (!(self._element.name) ) { self._element.name = self._name }
         self.childElements = [];
         if (args[0].attributes) { self.setAttributes(args[0].attributes) }
     }

@@ -25,9 +25,12 @@ class {
     let self = this;
     self._elementType = "button"
     self.base(...args)
-    if (args[0].buttonText) { self.element.innerHTML = args[0].buttonText }
+    let prms = args[0] || {};
+    if (typeof prms.buttonText !== 'undefined') { self.element.innerHTML = prms.buttonText }    
   }
   get elementType() { return this._elementType ? this._elementType : "button"; }
   set elementType(value) { this._elementType = value; }
+  get buttonText(){return this.element.innerHTML;}
+  set buttonText(value){this.element.innerHTML = value;}
 
 }
