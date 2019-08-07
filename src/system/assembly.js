@@ -130,6 +130,8 @@ Mrbr.System.Assembly = class {
                     resolver = resolve;
                     rejecter = reject;
                 });
+                var myHeaders = new Headers();
+
             fetch(url, {
                 method: 'GET'
             })
