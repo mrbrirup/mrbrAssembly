@@ -24,7 +24,7 @@ class {
     static get using() { return []; }
     static get manifest() { return []; }
     constructor(...args) {
-        this.base(...args)
+        //this.base(...args)
         this._pre = [];
         this._post = []
     }

@@ -43,8 +43,8 @@ const loadFile = function (...args) {
 }
 Mrbr.System.Assembly.initialised({
     assemblyResolvers: [
-        { replace: new RegExp("^App\\.Utils"), with: path.resolve(__dirname, "./../utils/") + "/" },
-        { replace: new RegExp("^Mrbr\\."), with: path.resolve(__dirname, "./../src/") + "/" },
+        { replace: new RegExp("^App\\.Utils","i"), with: path.resolve(__dirname, "./../utils/") + "/" },
+        { replace: new RegExp("^Mrbr\\.","i"), with: path.resolve(__dirname, "./../src/") + "/" },
         { replace: new RegExp("\\.", "g"), with: "/" }
     ],
     loadFile: loadFile

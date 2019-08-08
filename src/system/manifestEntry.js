@@ -29,12 +29,19 @@ class {
      * @param {string} fileType One of ManifestEntry.FileTypes
      * @param {string} entryName File name or className to load
      */
-    constructor(fileType, entryName, alias, url) {
-        this._fileType = fileType;
-        this._entryName = entryName;
-        this._alias = alias || entryName;
-        this._url = url;
+    constructor(fileType, entryName, alias, url, fnFormatUrl) {
+        let self = this;
+        self._fileType = fileType;
+        self._entryName = entryName;
+        self._alias = alias || entryName;
+        self._url = url;
+        if (typeof fnFormatUrl !== 'undefined'){
+            self.fnFormatUrl = fnFormatUrl.bind(self);
+        }
     }
+    
+    fnFormatUrl(){ return this._url.toLowerCase() ;}
+    get formatUrl(){return this.fnFormatUrl(this.url);}
     get url() { return this._url; }
     set url(value) { this._url = value; }
     /**
