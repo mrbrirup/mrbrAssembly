@@ -65,14 +65,15 @@ Mrbr.System.Assembly = class {
         let target;
         if ((argCount === 1)) { target = defaultContext }
         else { target = args[0]; }
-        if (assembly.objectCache[objectName] !== undefined) { return assembly.objectCache[objectName] }
+        if (typeof assembly.objectCache[objectName] !== 'undefined' && assembly.objectCache[objectName].hasOwnProperty("mrbrAssemblyTypeName")) { return assembly.objectCache[objectName] }
         const nsParts = args[argCount - 1].split(".");
         let currentObject = target;
         for (let nsCounter = 0, partName, nsPartsLength = nsParts.length; nsCounter < nsPartsLength; nsCounter++) {
             partName = nsParts[nsCounter];
-            currentObject = currentObject[partName] !== undefined ? currentObject[partName] : currentObject[partName] = {};
+            if (currentObject[partName] === undefined) { currentObject[partName] = {} }
+            currentObject = currentObject[partName];
         }
-        Mrbr.System.Assembly[objectName] = currentObject
+        assembly.objectCache[objectName] = currentObject;
         return currentObject;
     }
 
@@ -90,76 +91,32 @@ Mrbr.System.Assembly = class {
     }
 
     static fetchFile(...args) {
-        let prms = args[0],
-            url,
-            fileAlias,
-            formattedUrl;
-        if (typeof prms === 'string') {
-            fileAlias = prms;
-            url = prms;
-            formattedUrl = url;
-        }
-        else if (typeof prms === 'object') {
-            url = prms.url;
-            formattedUrl = prms.formatUrl ? prms.formatUrl : url;
-            fileAlias = prms.alias ? prms.alias : url;
-        }
-        else if (Mrbr.System.Object.typeMatch(prms, "Mrbr.System.ManifestEntry")) {
-            fileAlias = prms.alias;
-            formattedUrl = prms.formatUrl;
-            url = prms.url;
-        }
-        else {
-            throw "Unknown class entry request"
-        }
-
-
-
         const assembly = Mrbr.System.Assembly,
-            loader = assembly.loader,
-            assemblyLoadedFile = assembly.loadedFile;
-        if (loader[url]) {
-            let loadUrlObject = loader[url];
-            if (loadUrlObject.loaded === true) {
-                return Promise.resolve();
-            }
-            else {
-                return loadUrlObject.promise;
-            }
-        }
-        else {
-            let resolver,
-                rejecter,
-                prm = new Promise((resolve, reject) => {
-                    resolver = resolve;
-                    rejecter = reject;
-                });
-            loader[url] = { promise: prm, result: undefined, loaded: false };
-            fetch(formattedUrl, {
+            fileLoadParameters = Mrbr.System.Assembly.getFileLoadParameters(args),
+            loader = assembly.loader
+        assemblyLoadedFile = assembly.loadedFile;
+        let loadInProgress;
+        if ((loadInProgress = assembly.isLoadInProgress(fileLoadParameters.url)) !== null) { return loadInProgress };
+        return new Promise((resolve, reject) => {
+            loader[fileLoadParameters.url] = { promise: prm, result: undefined, loaded: false };
+            fetch(fileLoadParameters.formattedUrl, {
                 method: 'GET'
             })
                 .then(response => response.text()
                     .then(text => {
-                        loader[url].result = text;
-                        loader[url].loaded = true;
-                        delete loader[url].promise
-                        const prm = { url: url, text: text }
+                        loader[fileLoadParameters.url].result = text;
+                        loader[fileLoadParameters.url].loaded = true;
+                        delete loader[fileLoadParameters.url].promise
+                        const prm = { url: fileLoadParameters.url, text: text }
                         text = assembly._fileInterceptor === undefined ? assemblyLoadedFile(prm) : assembly.fileInterceptor.intercept(assemblyLoadedFile, undefined, prm)[1]
-                        resolver(text);
+                        if (fileLoadParameters.formattedUrl !== fileLoadParameters.url) { loader[fileLoadParameters.formattedUrl] = loader[fileLoadParameters.url]; }
+                        resolve(text);
                     })
-                    .catch(function (error) { rejecter(error) }))
-                .catch(function (error) { rejecter(error) })
-            //if (fileAlias !== url) {                loader[fileAlias] = loader[url];            }
-            return prm;
-        }
+                    .catch(function (error) { reject(error) }))
+                .catch(function (error) { reject(error) })
+        });
     }
-
-    /**
-     * 
-     * @param {string} url load a file from a url
-     * @returns {Promise} promise for when file has loaded or existing promise of file if it is loading or has loaded
-     */
-    static loadXmlHttpFile(url) {
+    static isLoadInProgress(url) {
         const loader = Mrbr.System.Assembly.loader;
         if (loader.hasOwnProperty(url)) {
             let loadUrlObject = loader[url];
@@ -170,34 +127,73 @@ Mrbr.System.Assembly = class {
                 return loadUrlObject.promise;
             }
         }
+        return null;
+    }
+    static getFileLoadParameters(...args) {
+        let prms = args[0],
+            url,
+            fileAlias,
+            formattedUrl,
+            headers;
+        if (typeof prms === 'string') {
+            fileAlias = prms;
+            url = prms;
+            formattedUrl = url;
+        }
+        else if (typeof prms === 'object') {
+            url = prms.url;
+            formattedUrl = prms.formatUrl ? prms.formatUrl : url;
+            fileAlias = prms.alias ? prms.alias : url;
+            headers = prms.headers
+        }
+        else if (Mrbr.System.Object.typeMatch(prms, "Mrbr.System.ManifestEntry")) {
+            fileAlias = prms.alias;
+            formattedUrl = prms.formatUrl;
+            url = prms.url;
+            headers = prms.headers
+        }
         else {
-
-            let resolver,
-                rejecter,
-                prm = new Promise((resolve, reject) => {
-                    resolver = resolve;
-                    rejecter = reject;
-                });
+            throw "Unknown class entry request"
+        }
+        return {
+            url: url,
+            fileAlias: fileAlias,
+            formattedUrl: formattedUrl,
+            headers: headers
+        }
+    }
+    /**
+     * 
+     * @param {string} url load a file from a url
+     * @returns {Promise} promise for when file has loaded or existing promise of file if it is loading or has loaded
+     */
+    static loadXmlHttpFile(...args) {
+        const assembly = Mrbr.System.Assembly;
+        let loadInProgress;
+        const loader = assembly.loader,
+            fileLoadParameters = assembly.getFileLoadParameters(args);
+        if ((loadInProgress = assembly.isLoadInProgress(fileLoadParameters.url)) !== null) { return loadInProgress }
+        return new Promise((resolve, reject) => {
+            loader[fileLoadParameters.url] = { promise: prm, result: undefined, loaded: false };
             const xmlHttp = new XMLHttpRequest();
-            xmlHttp.open("GET", url, true);
+            xmlHttp.open("GET", fileLoadParameters.url, true);
             xmlHttp.send("");
             xmlHttp.onreadystatechange = function () {
                 if (xmlHttp.readyState === 4) {
                     if (xmlHttp.status >= 200 && xmlHttp.status < 300) {
-                        loader[url].result = xmlHttp.responseText;
-                        loader[url].loaded = true;
+                        loader[fileLoadParameters.url].result = xmlHttp.responseText;
+                        loader[fileLoadParameters.url].loaded = true;
                         delete loader[url].promise
                         const prm = { url: url, text: xmlHttp.responseText }
                         const text = assembly._fileInterceptor === undefined ? assemblyLoadedFile(prm) : assembly.fileInterceptor.intercept(assemblyLoadedFile, undefined, prm)[1]
-                        resolver(text);
+                        if (fileLoadParameters.formattedUrl !== fileLoadParameters.url) { loader[fileLoadParameters.formattedUrl] = loader[fileLoadParameters.url]; }
+                        resolve(text);
                     } else {
-                        rejecter(new Error(xmlHttp.statusText));
+                        reject(new Error(xmlHttp.statusText));
                     }
                 }
             }
-            loader[url] = { promise: prm, result: undefined, loaded: false };
-            return prm;
-        }
+        });
     }
     static loadFile(filename) { }
     static loadFiles(files) {
@@ -592,6 +588,8 @@ Mrbr.System.Assembly = class {
                 });
         })
     }
+    static loadManifest_class() { }
+    static loadManifest_() { }
     /**
      * 
      * @param {ManifestEntry[]} manifest load an array of manifest entries, script or classes
@@ -611,89 +609,75 @@ Mrbr.System.Assembly = class {
         let arrManifest = new Array(manifestCount);
         for (let manifestCounter = 0, manifestEntry; manifestCounter < manifestCount; manifestCounter++) {
             manifestEntry = manifest[manifestCounter];
+            let forResolve, forReject;
+            arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
+                forResolve = resolve;
+                forReject = reject;
+            });
             switch (manifestEntry.fileType) {
                 case fileTypes.Class:
-                    arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
-                        //const prmfn = { className: manifestEntry.entryName }
-                        const prmfn = manifestEntry
-                        assemblyLoadClass(prmfn)
-                            .then(result => resolve())
-                            .catch(function (error) {
-                                reject(error)
-                            });
-                    })
+                    assemblyLoadClass(manifestEntry)
+                        .then(result => forResolve())
+                        .catch(function (error) {
+                            forReject(error)
+                        });
                     break;
                 case fileTypes.Component:
-                    arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
-                        const prmfn = manifestEntry;// { componentName: manifestEntry.entryName }
-                        assembly.loadComponent(prmfn)
-                            .then(result => resolve())
-                            .catch(function (error) {
-                                reject(error)
-                            });
-                    })
+                    assembly.loadComponent(manifestEntry)
+                        .then(result => forResolve())
+                        .catch(function (error) {
+                            forReject(error)
+                        });
                     break;
                 case fileTypes.Script:
-                    arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
-                        const prmfn = { url: manifestEntry.entryName }
-                        assemblyLoadScript(prmfn)
-                            .then(result => resolve())
-                            .catch(function (error) {
-                                reject(error)
-                            });
-                    })
+
+                    assemblyLoadScript({ url: manifestEntry.entryName })
+                        .then(result => forResolve())
+                        .catch(function (error) {
+                            forReject(error)
+                        });
                     break;
                 case fileTypes.File:
-                    arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
-                        const prmfn = { url: manifestEntry.entryName }
-                        assemblyLoadFile(prmfn).then(result => resolve())
-                            .catch(function (error) {
-                                reject(error)
-                            });
-                    })
+
+                    assemblyLoadFile({ url: manifestEntry.entryName }).then(result => forResolve())
+                        .catch(function (error) {
+                            forReject(error)
+                        });
                     break;
                 case fileTypes.ScriptElement:
-                    arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
-                        const prmfn = { url: manifestEntry.entryName }
-                        assemblyLoadScriptElement(prmfn).then(result => resolve())
-                            .catch(function (error) {
-                                reject(error)
-                            });
-                    })
+
+                    assemblyLoadScriptElement({ url: manifestEntry.entryName }).then(result => forResolve())
+                        .catch(function (error) {
+                            forReject(error)
+                        });
                     break;
                 case fileTypes.Style:
-                    arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
-                        if (manifestEntry.entryName.toLowerCase().endsWith(".css")) {
-                            const prmfn = { url: manifestEntry.entryName.toLowerCase(), formatUrl: manifestEntry.entryName.toLowerCase() }
-                            assemblyLoadStyle(prmfn).then(result => resolve())
-                                .catch(function (error) {
-                                    reject(error)
-                                });
-                        }
-                        else {
-                            const prmfn = { url: `${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css`.toLowerCase(), formatUrl: `${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css`.toLowerCase() }
-                            assemblyLoadStyle(prmfn).then(result => resolve())
-                                .catch(function (error) {
-                                    reject(error)
-                                });
-                        }
-                    });
+                    if (manifestEntry.entryName.toLowerCase().endsWith(".css")) {
+
+                        assemblyLoadStyle({ url: manifestEntry.entryName.toLowerCase(), formatUrl: manifestEntry.entryName.toLowerCase() }).then(result => forResolve())
+                            .catch(function (error) {
+                                forReject(error)
+                            });
+                    }
+                    else {
+
+                        assemblyLoadStyle({ url: `${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css`.toLowerCase(), formatUrl: `${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css`.toLowerCase() }).then(result => forResolve())
+                            .catch(function (error) {
+                                forReject(error)
+                            });
+                    }
                     break;
                 case fileTypes.LinkedStyle:
-                    arrManifest[manifestCounter] = new Promise(function (resolve, reject) {
-                        if (manifestEntry.entryName.toLowerCase().endsWith(".css")) {
-                            const prm = { url: manifestEntry.entryName.toLowerCase(), formatUrl: manifestEntry.entryName.toLowerCase() }
-                            assemblyLinkedStyle(prm).then(result => resolve()).catch(function (error) {
-                                reject(error)
-                            });
-                        }
-                        else {
-                            const prm = { url: `${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css`.toLowerCase(), formatUrl: `${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css`.toLowerCase() }
-                            assemblyLinkedStyle(prm).then(result => resolve()).catch(function (error) {
-                                reject(error)
-                            });
-                        }
-                    });
+                    if (manifestEntry.entryName.toLowerCase().endsWith(".css")) {
+                        assemblyLinkedStyle({ url: manifestEntry.entryName.toLowerCase(), formatUrl: manifestEntry.entryName.toLowerCase() }).then(result => forResolve()).catch(function (error) {
+                            forReject(error)
+                        });
+                    }
+                    else {
+                        assemblyLinkedStyle({ url: `${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css`.toLowerCase(), formatUrl: `${assembly.resolveNamespaceToFile(manifestEntry.entryName)}.css`.toLowerCase() }).then(result => forResolve()).catch(function (error) {
+                            forReject(error)
+                        });
+                    }
                     break;
             }
         }
@@ -1273,7 +1257,16 @@ Mrbr.System.Assembly = class {
                         { url: Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Inheritance") + ".js", formatUrl: (Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Inheritance") + ".js").toLowerCase() },
                         { url: Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Exception") + ".js", formatUrl: (Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Exception") + ".js").toLowerCase() }
                     ])
-                .then(() => assembly.loadClass({ entryName: "Mrbr.Utils.Parser.Tokeniser".toLowerCase(), alias: "Mrbr.Utils.Parser.Tokeniser" }))
+                .then(() => {
+                    assembly.loader["Mrbr.Utils.Parser.Tokeniser"] = assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Utils.Parser.Tokeniser") + ".js"];
+                    assembly.loader["Mrbr.System.Object"] = assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Object") + ".js"];
+                    assembly.loader["Mrbr.Interceptor.Interceptor"] = assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Interceptor.Interceptor") + ".js"];
+                    assembly.loader["Mrbr.System.ManifestEntry"] = assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.ManifestEntry") + ".js"];
+                    assembly.loader["Mrbr.System.Inheritance"] = assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Inheritance") + ".js"];
+                    assembly.loader["Mrbr.System.Exception"] = assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Exception") + ".js"];
+
+                    return assembly.loadClass({ entryName: "Mrbr.Utils.Parser.Tokeniser".toLowerCase(), alias: "Mrbr.Utils.Parser.Tokeniser" })
+                })
                 .then(() => assembly.loadClass({ entryName: "Mrbr.System.Object".toLowerCase(), alias: "Mrbr.System.Object" }))
                 .then(() => assembly.loadClass({ entryName: "Mrbr.Interceptor.Interceptor".toLowerCase(), alias: "Mrbr.Interceptor.Interceptor" }))
                 .then(() => {
