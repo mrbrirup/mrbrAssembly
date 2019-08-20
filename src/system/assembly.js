@@ -58,14 +58,15 @@ Mrbr.System.Assembly = class {
      * @returns {object}        either a new namespaced object or the existing object
      */
     static toObject(...args) {
-        var defaultContext = Mrbr.System.Assembly.defaultContext;
+        let defaultContext = Mrbr.System.Assembly.defaultContext;
         const argCount = args.length,
             objectName = args[argCount - 1],
-            assembly = Mrbr.System.Assembly;
+            assembly = Mrbr.System.Assembly,
+            assemblyObjectCache = assembly.objectCache;
         let target;
         if ((argCount === 1)) { target = defaultContext }
         else { target = args[0]; }
-        if (typeof assembly.objectCache[objectName] !== 'undefined' && assembly.objectCache[objectName].hasOwnProperty("mrbrAssemblyTypeName")) { return assembly.objectCache[objectName] }
+        if (typeof assemblyObjectCache[objectName] !== 'undefined' && typeof assemblyObjectCache[objectName].mrbrAssemblyTypeName !== 'undefined') { return assemblyObjectCache[objectName] }
         const nsParts = args[argCount - 1].split(".");
         let currentObject = target;
         for (let nsCounter = 0, partName, nsPartsLength = nsParts.length; nsCounter < nsPartsLength; nsCounter++) {
@@ -73,8 +74,7 @@ Mrbr.System.Assembly = class {
             if (currentObject[partName] === undefined) { currentObject[partName] = {} }
             currentObject = currentObject[partName];
         }
-        assembly.objectCache[objectName] = currentObject;
-        return currentObject;
+        return assemblyObjectCache[objectName] = currentObject;
     }
 
     static get defaultContext() { return Mrbr.System.Assembly._defaultContext; }
