@@ -26,7 +26,7 @@ var Mrbr = Mrbr || {};
 Mrbr.System = Mrbr.System || {}
 /**
  * Assembly class for   defining Namespaces, 
- *                       loading classes,
+ *                      loading classes,
 *                       setting inheritence, 
 *                       loading requirements,
 *                       maintaining loaded file list. 
@@ -40,13 +40,7 @@ Mrbr.System.Assembly = class {
             { replace: new RegExp("^Mrbr\\."), with: "/" },
             { replace: new RegExp("\\.", "g"), with: "/" }
         ];
-        //const mTokeniser = Mrbr.Utils.Parser.Tokeniser;
-        //tokenString = classType.prototype.constructor.toString();
     }
-    /**
-     * Load classes required by assembly function
-     */
-    //static get using() { return ["Mrbr.System.ManifestEntry", "Mrbr.System.Interface"] }
     /**
      * 
      * @param  {...any} args    create a namespaced object 
@@ -63,11 +57,9 @@ Mrbr.System.Assembly = class {
             objectName = args[argCount - 1],
             assembly = Mrbr.System.Assembly,
             assemblyObjectCache = assembly.objectCache;
-        let target;
-        if ((argCount === 1)) { target = defaultContext }
-        else { target = args[0]; }
         if (typeof assemblyObjectCache[objectName] !== 'undefined' && typeof assemblyObjectCache[objectName].mrbrAssemblyTypeName !== 'undefined') { return assemblyObjectCache[objectName] }
-        const nsParts = args[argCount - 1].split(".");
+        const nsParts = args[argCount - 1].split("."),
+            target = (argCount === 1) ? defaultContext : args[0];
         let currentObject = target;
         for (let nsCounter = 0, partName, nsPartsLength = nsParts.length; nsCounter < nsPartsLength; nsCounter++) {
             partName = nsParts[nsCounter];
@@ -83,13 +75,14 @@ Mrbr.System.Assembly = class {
         return Mrbr.System.Assembly._objectCache
     }
     /**
-     * @deprecated
+     * Loads a file using using browser fetch function.
+     * Default assembly functionality will assign from fetch, XMLHTTP or File load function passed to initialiser
+     * Cache of files is maintained. Multiple requests for the same for file will only result in one attempt for the file to be loaded.
      * @param  {...any} args 
+     * 
+     * @returns {Promise} Promise for loading file, either a new Promise if a new request, existing Promise if file is queued, or resolved Promise if file has loaded
+     * 
      */
-    static isObject(...args) {
-        return ObjectUtils.toObject(...args) !== undefined
-    }
-
     static fetchFile(...args) {
         const assembly = Mrbr.System.Assembly,
             fileLoadParameters = Mrbr.System.Assembly.getFileLoadParameters(args),
@@ -116,6 +109,12 @@ Mrbr.System.Assembly = class {
                 .catch(function (error) { reject(error) })
         });
     }
+    /**
+     * Checks if file is being loaded
+     * @param {string} url 
+     * 
+     * @returns {null|Promise} If file is loading the related Promise, if file is loaded a resolved Promise, if a new request then null;
+     */
     static isLoadInProgress(url) {
         const loader = Mrbr.System.Assembly.loader;
         if (loader.hasOwnProperty(url)) {
@@ -129,6 +128,11 @@ Mrbr.System.Assembly = class {
         }
         return null;
     }
+    /**
+     * Returns file load parameters from the ...args datatypes parameters passed in
+     * @param  {...any} args arguments will be padded out from string, Object or Mrbr.System.ManifestEntry
+     * @returns {Object} Object containing parameters for loading file. Will be used for XMLHTTP, fetch, Node or custom file loader
+     */
     static getFileLoadParameters(...args) {
         let prms = args[0],
             url,
@@ -163,7 +167,8 @@ Mrbr.System.Assembly = class {
         }
     }
     /**
-     * 
+     * Loads a file using using browser XMLHttpRequest object.
+     * Default assembly functionality will assign from fetch, XMLHTTP or File load function passed to initialiser
      * @param {string} url load a file from a url
      * @returns {Promise} promise for when file has loaded or existing promise of file if it is loading or has loaded
      */
@@ -195,7 +200,17 @@ Mrbr.System.Assembly = class {
             }
         });
     }
+    /**
+     * Stub function for loadFile function.
+     * Replaced by fetchFile, loadXmlHttpFile or custom load file function
+     * @param {any} filename 
+     */
     static loadFile(filename) { }
+    /**
+     * Loads an array of files. Non-array requests will be converted to an Array
+     * @param {any} files 
+     * @returns {Promise} Array of Promises for each entry in Files Array
+     */
     static loadFiles(files) {
         if (files === undefined) { return Promise.resolve(); }
         if (!Array.isArray(files)) { files = [files] }
@@ -212,7 +227,8 @@ Mrbr.System.Assembly = class {
      */
     static get typePropertyName() { return "mrbrAssemblyTypeName" }
     /**
-     * 
+     * Adds a new Property, mrbrAssemblyTypeName, to a loaded class or component.
+     * Allows for type checking and mrbrAssembly functionality to be applied to the Class
      * @param {string} className script source to run to add  full namespaced object name to loaded class
      */
     static addTypeNameScript(className) {
@@ -220,7 +236,8 @@ Mrbr.System.Assembly = class {
         return `\nObject.defineProperty(${className}.prototype, '${assembly.typePropertyName}', { get: function() {return ${className}.${assembly.typePropertyName};}});\n${className}.${assembly.typePropertyName} = "${className}";`
     }
     /**
-     * Default Collection of replacements of namespaces to files
+     * Array of replacements to convert namespaces and object names to file names
+     * e.g. Mrbr.System.Object is converted to system/object.js
      */
     static get fileReplacements() {
         return Mrbr.System.Assembly._fileReplacements;
@@ -228,6 +245,10 @@ Mrbr.System.Assembly = class {
     static set fileReplacements(value) {
         Mrbr.System.Assembly._fileReplacements = value;
     }
+    /**
+     * Converts Class Names to filenames using fileReplacements
+     * @param {String} className 
+     */
     static resolveNamespaceToFile(className) {
         let fileName = className;
         for (let replacementCounter = 0, replacements = Mrbr.System.Assembly._fileReplacements, replacementCount = replacements.length, replacement; replacementCounter < replacementCount; replacementCounter++) {
@@ -258,8 +279,15 @@ Mrbr.System.Assembly = class {
     }
     /**
      * Static object of all files loaded through Assembly
+     * Collection is based on the loaded request, Object name or filename
      */
     static get loader() { return Mrbr.System.Assembly._loader; }
+    /**
+     * Loads an HTML Custom Element. 
+     * The Custom Element can either be added to the DOM as an HTML <my-control></my-control>
+     * or its class instantiated and added as a Child to SubClass of Mrbr.Html.BaseHtml
+     * @param  {...any} args 
+     */
     static loadComponent(...args) {
         let componentName,
             componentAlias,
@@ -320,6 +348,13 @@ Mrbr.System.Assembly = class {
                 })
         })
     }
+    /**
+     * Creates a mrbrAssembly compliant class
+     * Uses className, including namespace, to define the class. 
+     * Namespaces are created automatically by toObject.
+     * class is assigned to objectCache to speed up returning objects
+     * @param  {...any} args 
+     */
     static createClass(...args) {
         const prms = args[0],
             className = prms.className,
