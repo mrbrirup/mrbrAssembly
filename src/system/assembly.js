@@ -88,7 +88,7 @@ Mrbr.System.Assembly = class {
             fileArgs = args[0],
             fileLoadParameters = Mrbr.System.Assembly.getFileLoadParameters(fileArgs),
             loader = assembly.loader,
-        assemblyLoadedFile = assembly.loadedFile;
+            assemblyLoadedFile = assembly.loadedFile;
         let loadInProgress;
         if ((loadInProgress = assembly.isLoadInProgress(fileLoadParameters.url)) !== null) { return loadInProgress };
         let resolver,
@@ -97,23 +97,23 @@ Mrbr.System.Assembly = class {
                 resolver = resolve;
                 rejecter = reject;
             });
-            loader[fileLoadParameters.url] = { promise: prm, result: undefined, loaded: false };
-            if (fileLoadParameters.formattedUrl !== fileLoadParameters.url) { loader[fileLoadParameters.formattedUrl] = loader[fileLoadParameters.url]; }
-            fetch(fileLoadParameters.formattedUrl, {
-                method: 'GET'
-            })
-                .then(response => response.text()
-                    .then(text => {
-                        loader[fileLoadParameters.url].result = text;
-                        loader[fileLoadParameters.url].loaded = true;
-                        delete loader[fileLoadParameters.url].promise
-                        const prm = { url: fileLoadParameters.url, text: text }
-                        text = assembly._fileInterceptor === undefined ? assemblyLoadedFile(prm) : assembly.fileInterceptor.intercept(assemblyLoadedFile, undefined, prm)[1]
-                        resolver(text);
-                    })
-                    .catch(function (error) { rejecter(error) }))
-                .catch(function (error) { rejecter(error) })
-        return prm 
+        loader[fileLoadParameters.url] = { promise: prm, result: undefined, loaded: false };
+        if (fileLoadParameters.formattedUrl !== fileLoadParameters.url) { loader[fileLoadParameters.formattedUrl] = loader[fileLoadParameters.url]; }
+        fetch(fileLoadParameters.formattedUrl, {
+            method: 'GET'
+        })
+            .then(response => response.text()
+                .then(text => {
+                    loader[fileLoadParameters.url].result = text;
+                    loader[fileLoadParameters.url].loaded = true;
+                    delete loader[fileLoadParameters.url].promise
+                    const prm = { url: fileLoadParameters.url, text: text }
+                    text = assembly._fileInterceptor === undefined ? assemblyLoadedFile(prm) : assembly.fileInterceptor.intercept(assemblyLoadedFile, undefined, prm)[1]
+                    resolver(text);
+                })
+                .catch(function (error) { rejecter(error) }))
+            .catch(function (error) { rejecter(error) })
+        return prm
     }
     /**
      * Checks if file is being loaded
@@ -269,6 +269,12 @@ Mrbr.System.Assembly = class {
      */
     static nop() { }
     /**
+     * For shared functions where a promise is required, but no action is required on all branches
+     * Classes and Components share a lot of logic, but Components use native Extend and not mrbrAssembly inheritance
+     * a resolved promise is returned on unfollowed branches
+     */
+    static resolvedPromise() { return Promise.resolve() }
+    /**
      * polyfill for array distinct
      */
     static setArrayPolyFills() {
@@ -295,7 +301,7 @@ Mrbr.System.Assembly = class {
      * or its class instantiated and added as a Child to SubClass of Mrbr.Html.BaseHtml
      * @param  {...any} args 
      */
-    static loadComloadComponent(...args) {
+    static loadComponent(...args) {
         let componentName,
             componentAlias,
             isManifestEntry = false;
@@ -322,10 +328,10 @@ Mrbr.System.Assembly = class {
             assemblyToObject = assembly.toObject,
             makeFileReplacements = Mrbr.System.Assembly.resolveNamespaceToFile,
             assemblyLoadClasses = assembly.loadClasses,
-            assemblySetInheritance = assembly.setInheritance,
-            //assemblyAddClassCtor = assembly.addClassCtor,
             assemblyLoadManifest = assembly.loadManifest,
-            assemblyCreateComponent = assembly.createComponent;
+            assemblyCreateComponent = assembly.createComponent,
+            assemblyResolvedPromise = assembly.resolvedPromise,
+            assemblyNop = assembly.nop;
         let fileName = makeFileReplacements(componentName) + ".js";
         return new Promise(function (resolve, reject) {
             let manifestEntry;
@@ -337,8 +343,8 @@ Mrbr.System.Assembly = class {
             else {
                 manifestEntry = new Mrbr.System.ManifestEntry(Mrbr.System.ManifestEntry.FileTypes.Component, componentName, componentAlias, fileName);
             }
-            //const prmfn = isManifestEntry = true ? Mrbr.System.Manifest{ url: fileName, alias: componentAlias }
-            assembly.loadFile(manifestEntry)
+            assembly
+                .loadFile(manifestEntry)
                 .then(function (result) {
                     if (!(assemblyToObject(componentName) instanceof Function)) {
                         const prm = { componentName: componentName, result: result, assembly: assembly, assemblyToObject: assemblyToObject };
@@ -348,12 +354,41 @@ Mrbr.System.Assembly = class {
                         const prm = { componentName: componentAlias, result: result, assembly: assembly, assemblyToObject: assemblyToObject };
                         assembly._componentInterceptor === undefined ? assemblyCreateComponent(prm) : assembly.componentInterceptor.intercept(assemblyCreateComponent, undefined, prm);
                     }
-                    resolve();
+                    assembly
+                        .loadSubManifest(assemblyToObject, componentName, assemblyLoadManifest)
+                        .then(_ => {
+                            return assembly.loadSubRequirements(
+                                assemblyToObject,
+                                componentName,
+                                [componentName],
+                                assemblyLoadClasses,
+                                reject,
+                                assemblyResolvedPromise,
+                                assemblyNop,
+                                resolve)
+                        })
                 })
                 .catch(function (error) {
                     reject(error);
                 })
         })
+    }
+    static loadSubManifest(assemblyToObject, className, assemblyLoadManifest) {
+        return new Promise(function (resolveLoadingManifest, rejectLoadingManifest) {
+            let obj = assemblyToObject(className), loadManifest = obj.manifest;
+            if (loadManifest === undefined || loadManifest === null || loadManifest.length === 0) {
+                resolveLoadingManifest();
+            }
+            else {
+                assemblyLoadManifest(loadManifest)
+                    .then(function () {
+                        resolveLoadingManifest();
+                    })
+                    .catch(function (error) {
+                        rejectLoadingManifest(error);
+                    });
+            }
+        });
     }
     /**
      * Creates a mrbrAssembly compliant class
@@ -385,7 +420,6 @@ Mrbr.System.Assembly = class {
             result = prms.result,
             assembly = prms.assembly,
             assemblyToObject = prms.assemblyToObject;
-            console.log(`${componentName} = ${result};\ncustomElements.define('${componentName.toLowerCase().split(".").join("-")}', ${componentName});`)
         Function(`${componentName} = ${result};\ncustomElements.define('${componentName.toLowerCase().split(".").join("-")}', ${componentName});`)();
         assembly.objectCache[componentName] = assemblyToObject(componentName);
     }
@@ -570,7 +604,6 @@ Mrbr.System.Assembly = class {
                     formatUrl: fileName.toLowerCase()
                 }
             }
-            //const prmfn = { url: fileName, alias: classAlias }
             assembly.loadFile(manifestEntry)
                 .then(function (result) {
                     let obj;
@@ -585,113 +618,105 @@ Mrbr.System.Assembly = class {
                 })
                 .catch(function (error) {
                     if (error instanceof Error) {
-                        //reject(new Mrbr.System.Exception({ name: "Exception", error: error, source: `${assembly.mrbrAssemblyTypeName}:loadClass`, info: `className: ${className}` }))
                         reject({ name: "Exception", error: error, source: `${assembly.mrbrAssemblyTypeName}:loadClass`, info: `className: ${classAlias}` })
                     }
                     reject(error)
                 })
-                .then(function () {
-                    return new Promise(function (resolveLoadingManifest, rejectLoadingManifest) {
-                        let obj = assemblyToObject(className),
-                            loadManifest = obj.manifest;
-                        if (loadManifest === undefined || loadManifest === null || loadManifest.length === 0) {
-                            resolveLoadingManifest();
-                        }
-                        else {
-                            assemblyLoadManifest(loadManifest)
-                                .then(function () {
-                                    resolveLoadingManifest()
-                                })
-                                .catch(function (error) {
-                                    rejectLoadingManifest(error)
-                                });
-                        }
-                    })
-                })
+                .then(_ => { return assembly.loadSubManifest(assemblyToObject, className, assemblyLoadManifest) })
                 .catch(function (error) {
                     reject(error)
                 })
                 .then(function () {
-                    let toloadCount = 0,
-                        lastToloadCount = -1,
-                        newClasses = [];
-                    return new Promise(function (resolveLoadClasses, rejectLoadClasses) {
-                        const obj = assemblyToObject(className),
-                            loopLoadClasses = function () {
-                                lastToloadCount = toloadCount;
-                                const toload = [],
-                                    objLoads = [
-                                        obj.using,
-                                        obj.inherits,
-                                        obj.newClasses
-                                    ]
-                                for (let objLoadsCounter = 0, objLoadsCount = objLoads.length; objLoadsCounter < objLoadsCount; objLoadsCounter++) {
-                                    let objLoadsEntry = objLoads[objLoadsCounter];
-                                    if (objLoadsEntry === undefined) { continue; }
-                                    for (let objLoadsEntryCounter = 0, objLoadsEntryCount = objLoadsEntry.length; objLoadsEntryCounter < objLoadsEntryCount; objLoadsEntryCounter++) {
-                                        let objLoadEntry = objLoadsEntry[objLoadsEntryCounter]
-                                        if (toload.includes(objLoadEntry)) { continue; }
-                                        toload.push(objLoadEntry)
-                                    }
-                                }
-                                toloadCount = toload.length;
-                                classNames = classNames.concat(toload).distinct();
-                                assemblyLoadClasses(toload)
-                                    .then(function (result) {
-                                        newClasses = result;
-                                        let count = ((newClasses === undefined) ? 0 : newClasses.length)
-                                        toloadCount += count;
-                                        if (toloadCount != lastToloadCount) {
-                                            loopLoadClasses();
-                                        }
-                                        else {
-                                            resolveLoadClasses();
-                                        }
-                                    })
-                                    .catch(function (error) {
-                                        rejectLoadClasses();
-                                    });
-                            }
-                        loopLoadClasses();
-                    })
-                        .catch(function (error) {
-                            reject(error)
-                        })
-                        .then(function (result1) {
-                            const arrCtors = [];
-                            if (classNames !== undefined && classNames.length > 0) {
-                                for (let classNameCounter = 0, classNameCount = classNames.length, obj; classNameCounter < classNameCount; classNameCounter++) {
-                                    if ((obj = assemblyToObject(classNames[classNameCounter])) instanceof Function) {
-                                        const prm1 = new Promise(function (prm1resolve, prm1reject) {
-                                            assemblySetInheritance(obj.inherits, obj)
-                                                .then(function (res) {
-                                                    assemblySetInheritance(obj.extends, obj)
-                                                        .then(function (res2) {
-                                                            assemblyAddClassCtor(obj);
-                                                            prm1resolve()
-                                                        })
-                                                })
-                                                .catch(function (error) {
-                                                    prm1reject()
-                                                })
-                                        })
-                                        arrCtors.push(prm1);
-                                    }
-                                };
-                            }
-                            Promise.all(arrCtors)
-                                .then(r2 => {
-                                    resolve()
-                                })
-                        })
-                        .catch(function (error) {
-                            reject(error)
-                        })
+                    return assembly.loadSubRequirements(
+                        assemblyToObject,
+                        className,
+                        classNames,
+                        assemblyLoadClasses,
+                        reject,
+                        assemblySetInheritance,
+                        assemblyAddClassCtor,
+                        resolve);
                 });
         })
     }
-    static loadManifest_class() { }
-    static loadManifest_() { }
+
+    static loadSubRequirements(assemblyToObject, className, classNames, assemblyLoadClasses, reject, assemblySetInheritance, assemblyAddClassCtor, resolve) {
+        let toloadCount = 0, lastToloadCount = -1, newClasses = [];
+        return new Promise(function (resolveLoadClasses, rejectLoadClasses) {
+            const obj = assemblyToObject(className), loopLoadClasses = function () {
+                lastToloadCount = toloadCount;
+                const toload = [], objLoads = [
+                    obj.using,
+                    obj.inherits,
+                    obj.newClasses
+                ];
+                for (let objLoadsCounter = 0, objLoadsCount = objLoads.length; objLoadsCounter < objLoadsCount; objLoadsCounter++) {
+                    let objLoadsEntry = objLoads[objLoadsCounter];
+                    if (objLoadsEntry === undefined) {
+                        continue;
+                    }
+                    for (let objLoadsEntryCounter = 0, objLoadsEntryCount = objLoadsEntry.length; objLoadsEntryCounter < objLoadsEntryCount; objLoadsEntryCounter++) {
+                        let objLoadEntry = objLoadsEntry[objLoadsEntryCounter];
+                        if (toload.includes(objLoadEntry)) {
+                            continue;
+                        }
+                        toload.push(objLoadEntry);
+                    }
+                }
+                toloadCount = toload.length;
+                classNames = classNames.concat(toload).distinct();
+                assemblyLoadClasses(toload)
+                    .then(function (result) {
+                        newClasses = result;
+                        let count = ((newClasses === undefined) ? 0 : newClasses.length);
+                        toloadCount += count;
+                        if (toloadCount != lastToloadCount) {
+                            loopLoadClasses();
+                        }
+                        else {
+                            resolveLoadClasses();
+                        }
+                    })
+                    .catch(function (error) {
+                        rejectLoadClasses();
+                    });
+            };
+            loopLoadClasses();
+        })
+            .catch(function (error) {
+                reject(error);
+            })
+            .then(function (result1) {
+                const arrCtors = [];
+                if (classNames !== undefined && classNames.length > 0) {
+                    for (let classNameCounter = 0, classNameCount = classNames.length, obj; classNameCounter < classNameCount; classNameCounter++) {
+                        if ((obj = assemblyToObject(classNames[classNameCounter])) instanceof Function) {
+                            const prm1 = new Promise(function (prm1resolve, prm1reject) {
+                                assemblySetInheritance(obj.inherits, obj)
+                                    .then(function (res) {
+                                        assemblySetInheritance(obj.extends, obj)
+                                            .then(function (res2) {
+                                                assemblyAddClassCtor(obj);
+                                                prm1resolve();
+                                            });
+                                    })
+                                    .catch(function (error) {
+                                        prm1reject();
+                                    });
+                            });
+                            arrCtors.push(prm1);
+                        }
+                    }
+                }
+                Promise.all(arrCtors)
+                    .then(r2 => {
+                        resolve();
+                    });
+            })
+            .catch(function (error) {
+                reject(error);
+            })
+    }
     /**
      * Load an array of manifest entries, script or classes
      * @param {ManifestEntry[]} manifest 
@@ -957,9 +982,9 @@ Mrbr.System.Assembly = class {
             }
             let rx1 = /\s*super\(\);{0,1}/g;
             Object.defineProperty(classType.prototype, "ctor", {
-                value: fnArgs.length === 0 ? 
-                Function( (`\n${arrBody.join("").trim()}\n`)) : 
-                Function(fnArgs, (`\n${arrBody.join("").trim() + `/* comment ctor ${classType.prototype.mrbrAssemblyTypeName} */`}\n`)) ,
+                value: fnArgs.length === 0 ?
+                    Function((`\n${arrBody.join("").trim()}\n`)) :
+                    Function(fnArgs, (`\n${arrBody.join("").trim() + `/* comment ctor ${classType.prototype.mrbrAssemblyTypeName} */`}\n`)),
                 configurable: false,
                 enumerable: true,
                 writable: false
@@ -1282,7 +1307,6 @@ Mrbr.System.Assembly = class {
      * @param {String} interfaceName 
      */
     static loadInterface(interfaceName) {
-        debugger
         let interfaceNames = [interfaceName],
             fileName = interfaceName;
         const assembly = Mrbr.System.Assembly,
@@ -1378,7 +1402,7 @@ Mrbr.System.Assembly = class {
     static initialised(config) {
 
         const assembly = Mrbr.System.Assembly;
-        Mrbr.System.Assembly._fileReplacements = Mrbr.System.Assembly._fileReplacements ||[];
+        Mrbr.System.Assembly._fileReplacements = Mrbr.System.Assembly._fileReplacements || [];
         config = config || {};
         if (config && config.loadFile !== undefined) {
             assembly.loadFile = config.loadFile
@@ -1530,3 +1554,4 @@ Mrbr.System.Assembly = class {
         return retVal;
     }
 }
+
