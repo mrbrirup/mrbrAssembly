@@ -6,7 +6,9 @@ global.require = require;
 new vm.Script(fs.readFileSync("./src/system/assembly.js", "utf8")).runInThisContext();
 const loadFile = function (...args) {
     const prms = args[0],
-    url = prms.url;
+    url = prms.url,
+    alias =  prms.alias ? prms.alias : prms.url,
+    formattedUrl = prms.formattedUrl ? prms.formattedUrl : prms.url;
     const fs = require("fs-extra"),
         loader = Mrbr.System.Assembly.loader,
         assembly = Mrbr.System.Assembly,
@@ -27,6 +29,9 @@ const loadFile = function (...args) {
                 resolver = resolve;
                 rejecter = reject;
             });
+            loader[url] = { promise: prm, result: undefined, loaded: false };
+            if (formattedUrl !== url) { loader[formattedUrl] = loader[url]; }
+            if (alias !== url) { loader[alias] = loader[url]; }
         fs.readFile(url, "utf8")
             .then(function (result) {
                 loader[url].result = result;
@@ -37,7 +42,6 @@ const loadFile = function (...args) {
                 resolver(result);
             })
             .catch(function (error) { rejecter(error) })
-        loader[url] = { promise: prm, result: undefined, loaded: false };
         return prm;
     }
 }

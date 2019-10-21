@@ -85,13 +85,20 @@ Mrbr.System.Assembly = class {
      */
     static fetchFile(...args) {
         const assembly = Mrbr.System.Assembly,
-            fileLoadParameters = Mrbr.System.Assembly.getFileLoadParameters(args),
-            loader = assembly.loader
+            fileArgs = args[0],
+            fileLoadParameters = Mrbr.System.Assembly.getFileLoadParameters(fileArgs),
+            loader = assembly.loader,
         assemblyLoadedFile = assembly.loadedFile;
         let loadInProgress;
         if ((loadInProgress = assembly.isLoadInProgress(fileLoadParameters.url)) !== null) { return loadInProgress };
-        return new Promise((resolve, reject) => {
+        let resolver,
+            rejecter,
+            prm = new Promise((resolve, reject) => {
+                resolver = resolve;
+                rejecter = reject;
+            });
             loader[fileLoadParameters.url] = { promise: prm, result: undefined, loaded: false };
+            if (fileLoadParameters.formattedUrl !== fileLoadParameters.url) { loader[fileLoadParameters.formattedUrl] = loader[fileLoadParameters.url]; }
             fetch(fileLoadParameters.formattedUrl, {
                 method: 'GET'
             })
@@ -102,12 +109,11 @@ Mrbr.System.Assembly = class {
                         delete loader[fileLoadParameters.url].promise
                         const prm = { url: fileLoadParameters.url, text: text }
                         text = assembly._fileInterceptor === undefined ? assemblyLoadedFile(prm) : assembly.fileInterceptor.intercept(assemblyLoadedFile, undefined, prm)[1]
-                        if (fileLoadParameters.formattedUrl !== fileLoadParameters.url) { loader[fileLoadParameters.formattedUrl] = loader[fileLoadParameters.url]; }
-                        resolve(text);
+                        resolver(text);
                     })
-                    .catch(function (error) { reject(error) }))
-                .catch(function (error) { reject(error) })
-        });
+                    .catch(function (error) { rejecter(error) }))
+                .catch(function (error) { rejecter(error) })
+        return prm 
     }
     /**
      * Checks if file is being loaded
@@ -178,7 +184,7 @@ Mrbr.System.Assembly = class {
         const loader = assembly.loader,
             fileLoadParameters = assembly.getFileLoadParameters(args);
         if ((loadInProgress = assembly.isLoadInProgress(fileLoadParameters.url)) !== null) { return loadInProgress }
-        return new Promise((resolve, reject) => {
+        return prm = new Promise((resolve, reject) => {
             loader[fileLoadParameters.url] = { promise: prm, result: undefined, loaded: false };
             const xmlHttp = new XMLHttpRequest();
             xmlHttp.open("GET", fileLoadParameters.url, true);
@@ -215,12 +221,13 @@ Mrbr.System.Assembly = class {
         if (files === undefined) { return Promise.resolve(); }
         if (!Array.isArray(files)) { files = [files] }
         const fileCount = files.length,
-            retval = new Array(fileCount),
+            loadingFiles = new Array(fileCount),
             assemblyLoadFile = Mrbr.System.Assembly.loadFile;
         for (let fileCounter = 0; fileCounter < fileCount; fileCounter++) {
-            retval[fileCounter] = assemblyLoadFile(files[fileCounter]);
+            loadingFiles[fileCounter] = assemblyLoadFile(files[fileCounter]);
         }
-        return Promise.all(retval);
+
+        return Promise.all(loadingFiles);
     }
     /**
      * Property name added to each loaded class returns full namespaced object name
@@ -288,7 +295,7 @@ Mrbr.System.Assembly = class {
      * or its class instantiated and added as a Child to SubClass of Mrbr.Html.BaseHtml
      * @param  {...any} args 
      */
-    static loadComponent(...args) {
+    static loadComloadComponent(...args) {
         let componentName,
             componentAlias,
             isManifestEntry = false;
@@ -316,7 +323,7 @@ Mrbr.System.Assembly = class {
             makeFileReplacements = Mrbr.System.Assembly.resolveNamespaceToFile,
             assemblyLoadClasses = assembly.loadClasses,
             assemblySetInheritance = assembly.setInheritance,
-            assemblyAddClassCtor = assembly.addClassCtor,
+            //assemblyAddClassCtor = assembly.addClassCtor,
             assemblyLoadManifest = assembly.loadManifest,
             assemblyCreateComponent = assembly.createComponent;
         let fileName = makeFileReplacements(componentName) + ".js";
@@ -364,35 +371,65 @@ Mrbr.System.Assembly = class {
         Function(`${className} = ${result};\n${assembly.addTypeNameScript(className)};\n`)();
         assembly.objectCache[className] = assemblyToObject(className);
     }
+    /**
+     * Create an mrbrAssembly compliant Component, Custom Element.
+     * Uses componentName, including namespace, to define component name, 
+     * The dot delimited component name becomes the hyphenated HTML Custom Element
+     * Namespaces are created automatically by toObject.
+     * Component is assigned to objectCache to speed up returning objects
+     * @param  {...any} args 
+     */
     static createComponent(...args) {
         const prms = args[0],
             componentName = prms.componentName,
             result = prms.result,
             assembly = prms.assembly,
             assemblyToObject = prms.assemblyToObject;
+            console.log(`${componentName} = ${result};\ncustomElements.define('${componentName.toLowerCase().split(".").join("-")}', ${componentName});`)
         Function(`${componentName} = ${result};\ncustomElements.define('${componentName.toLowerCase().split(".").join("-")}', ${componentName});`)();
         assembly.objectCache[componentName] = assemblyToObject(componentName);
     }
+    /**
+     * Runs loaded script. 
+     * Run the same as an HTML Script element, but loading and running uses a Promise
+     * Avoids race condition of running code when using Script element
+     * @param  {...any} args 
+     */
     static createScript(...args) {
         const prms = args[0],
             scriptText = prms.scriptText;
         Function(scriptText)();
     }
+    /**
+     * Result of loading a file that has no additional associated functionality such as classes, components, css
+     * @param  {...any} args 
+     */
     static loadedFile(...args) {
         const prms = args[0],
             text = prms.text;
         return text;
     }
+    /**
+     * Create an HTML Script element, but loading and running uses a Promise
+     * Avoids race condition of running code when using Script element
+     * Added to DOM
+     * @param  {...any} args      
+     */
     static createScriptElement(...args) {
         const prms = args[0],
             fileName = prms.fileName,
             sourceText = prms.scriptText;
-        let scr = document.createElement("script");
-        scr.id = fileName;
-        scr.text = sourceText;
-        document.head.appendChild(scr);
-        return src;
+        let scriptElement = document.createElement("script");
+        scriptElement.id = fileName;
+        scriptElement.text = sourceText;
+        document.head.appendChild(scriptElement);
+        return scriptElement;
     }
+    /**
+     * Creates a Style HTML Element the contents of which are from the loaded file
+     * Allow synchronisation of creating UI and adding style.
+     * @param  {...any} args 
+     */
     static createStyle(...args) {
         const prms = args[0],
             fileName = prms.url,
@@ -408,6 +445,10 @@ Mrbr.System.Assembly = class {
         document.head.appendChild(css);
         return css;
     }
+    /**
+     * Creates a HTML element linked to source file 
+     * @param  {...any} args 
+     */
     static createLinkedStyle(...args) {
         const prms = args[0],
             fileName = prms.url;
@@ -420,28 +461,54 @@ Mrbr.System.Assembly = class {
         return css;
     }
 
-
+    /**
+     * Load a file and parse as JSON and assign to loader as a Javascript Object
+     * @param  {...any} args 
+     */
     static createConfig(...args) {
         const prms = args[0],
             configText = prms.configText;
         assembly.loader[configFileName].config = JSON.parse(configText);
         return assembly.loader[configFileName].config;
     }
-
+    /**
+     * Interceptor wrapper around create class
+     */
     static get classInterceptor() { return Mrbr.System.Assembly._classInterceptor; }
     static set classInterceptor(value) { Mrbr.System.Assembly._classInterceptor = value; }
+    /**
+     * Interceptor wrapper around createComponent
+     */
     static get componentInterceptor() { return Mrbr.System.Assembly._componentInterceptor; }
     static set componentInterceptor(value) { Mrbr.System.Assembly._componentInterceptor = value; }
+    /**
+     * Interceptor wrapper around createScript
+     */
     static get scriptInterceptor() { return Mrbr.System.Assembly._scriptInterceptor; }
     static set scriptInterceptor(value) { Mrbr.System.Assembly._scriptInterceptor = value; }
+    /**
+     * Interceptor wrapper around loadedFile
+     */
     static get fileInterceptor() { return Mrbr.System.Assembly._fileInterceptor; }
     static set fileInterceptor(value) { Mrbr.System.Assembly._fileInterceptor = value; }
+    /**
+     * Interceptor wrapper around createScriptElement
+     */
     static get scriptElementInterceptor() { return Mrbr.System.Assembly._scriptElementInterceptor; }
     static set scriptElementInterceptor(value) { Mrbr.System.Assembly._scriptElementInterceptor = value; }
+    /**
+     * Interceptor wrapper around createStyle
+     */
     static get styleInterceptor() { return Mrbr.System.Assembly._styleInterceptor; }
     static set styleInterceptor(value) { Mrbr.System.Assembly._styleInterceptor = value; }
+    /**
+     * Interceptor wrapper around createLinkedStyle
+     */
     static get linkedStyleInterceptor() { return Mrbr.System.Assembly._linkedStyleInterceptor; }
     static set linkedStyleInterceptor(value) { Mrbr.System.Assembly._linkedStyleInterceptor = value; }
+    /**
+     * Interceptor wrapper around createConfig
+     */
     static get configInterceptor() { return Mrbr.System.Assembly._configInterceptor; }
     static set configInterceptor(value) { Mrbr.System.Assembly._configInterceptor = value; }
 
@@ -626,8 +693,9 @@ Mrbr.System.Assembly = class {
     static loadManifest_class() { }
     static loadManifest_() { }
     /**
-     * 
-     * @param {ManifestEntry[]} manifest load an array of manifest entries, script or classes
+     * Load an array of manifest entries, script or classes
+     * @param {ManifestEntry[]} manifest 
+     * @returns {Promise} Promise.all of array of files being loaded
      */
     static loadManifest(manifest) {
         if (manifest === undefined) { return Promise.resolve() }
@@ -719,8 +787,8 @@ Mrbr.System.Assembly = class {
         return Promise.all(arrManifest);
     }
     /**
-     * 
-     * @param {string} fileName load script from filename
+     * Load script from filename
+     * @param {string} fileName 
      * @returns {Promise} Promise for script being loaded
      */
     static loadScript(fileName) {
@@ -740,8 +808,8 @@ Mrbr.System.Assembly = class {
         });
     }
     /**
-     * 
-     * @param {string or string[]} fileNames load array of scripts from filenames
+     * Load array of scripts from filenames
+     * @param {string or string[]} fileNames 
      * @returns {Promise.all} Promises for all loading scripts
      */
     static loadScripts(fileNames) {
@@ -763,6 +831,9 @@ Mrbr.System.Assembly = class {
         }
         return Promise.all(arrFileNames);
     }
+    /**
+     * constructor Tokeniser assigned on initalisation
+    */
     static get ctorTokeniser() { return this._ctorTokeniser; }
     static set ctorTokeniser(value) { this._ctorTokeniser = value; }
     /**
@@ -884,8 +955,11 @@ Mrbr.System.Assembly = class {
             for (let counter = bodyStart + 1; counter <= bodyEnd - 1; counter++) {
                 arrBody[counter] = tokens[counter].value;
             }
+            let rx1 = /\s*super\(\);{0,1}/g;
             Object.defineProperty(classType.prototype, "ctor", {
-                value: fnArgs.length === 0 ? Function(`\n${arrBody.join("").trim()}\n`) : Function(fnArgs, `\n${arrBody.join("").trim() + `/* comment ctor ${classType.prototype.mrbrAssemblyTypeName} */`}\n`),
+                value: fnArgs.length === 0 ? 
+                Function( (`\n${arrBody.join("").trim()}\n`)) : 
+                Function(fnArgs, (`\n${arrBody.join("").trim() + `/* comment ctor ${classType.prototype.mrbrAssemblyTypeName} */`}\n`)) ,
                 configurable: false,
                 enumerable: true,
                 writable: false
@@ -935,7 +1009,14 @@ Mrbr.System.Assembly = class {
         }
         return classType;
     }
-
+    /**
+     * Recursive function to build list of inherited constructors to call in order for a class or component
+     * @param {String} inhClassType 
+     * @param {Array} called 
+     * @param {Array} constructorsToCall 
+     * @param {Function} callInheritance 
+     * @param {Function} assemblyToObject 
+     */
     static callInheritance(inhClassType, called, constructorsToCall, callInheritance, assemblyToObject) {
         const propName = `${inhClassType.prototype.mrbrAssemblyTypeName.split(".").join("_")}_ctor`,
             inhClassTypeInherits = inhClassType.inherits;
@@ -948,7 +1029,11 @@ Mrbr.System.Assembly = class {
         called.push(propName);
         constructorsToCall.push(propName)
     }
-
+    /**
+     * Create list of inherited classes for Class in order
+     * @param {String} keys 
+     * @param {Class} obj 
+     */
     static listClassInheritance(keys, obj) {
         const assembly = Mrbr.System.Assembly;
         if (obj.inherits && obj.mrbrAssemblyTypeName) {
@@ -986,6 +1071,10 @@ Mrbr.System.Assembly = class {
         }
         return Promise.all(arrClasses);
     }
+    /**
+     * Load a file to parse as JSON and cache as a Javascript Object
+     * @param  {...any} args 
+     */
     static loadConfigFile(...args) {
         const prms = args[0],
             configFileName = prms.url,
@@ -1005,6 +1094,10 @@ Mrbr.System.Assembly = class {
                 });
         });
     }
+    /**
+     * Load an Array of files as Config Files
+     * @param {Array} configFiles 
+     */
     static loadConfigFiles(configFiles) {
         if (configFiles === undefined || classes.length === 0) { return Promise.resolve(); }
         configFiles = Array.isArray(configFiles) ? configFiles : [configFiles];
@@ -1025,6 +1118,10 @@ Mrbr.System.Assembly = class {
         }
         return Promise.all(configPromises);
     }
+    /**
+     * Load file as a HTML Style element
+     * @param  {...any} args 
+     */
     static loadStyleElement(...args) {
         const prms = args[0],
             fileName = prms.url,
@@ -1043,6 +1140,10 @@ Mrbr.System.Assembly = class {
                 });
         });
     }
+    /**
+     * Load list of files as HTML Style elements
+     * @param {Array} filenames 
+     */
     static loadStyleElements(filenames) {
         if (filenames === undefined || filenames.length === 0) { return Promise.resolve(); }
         filenames = Array.isArray(filenames) ? filenames : [filenames];
@@ -1063,7 +1164,10 @@ Mrbr.System.Assembly = class {
         }
         return Promise.all(fileNamePromises);
     }
-
+    /**
+     * Load file as Script Element
+     * @param  {...any} args 
+     */
     static loadScriptElement(...args) {
         const prms = args[0],
             fileName = prms.url,
@@ -1082,6 +1186,10 @@ Mrbr.System.Assembly = class {
                 });
         });
     }
+    /**
+     * Load Array of files as Script Elements
+     * @param {Array} filenames 
+     */
     static loadScriptElements(filenames) {
         if (filenames === undefined || filenames.length === 0) { return Promise.resolve(); }
         filenames = Array.isArray(filenames) ? filenames : [filenames];
@@ -1101,6 +1209,10 @@ Mrbr.System.Assembly = class {
         }
         return Promise.all(fileNamePromises);
     }
+    /**
+     * Create Linked Script Element
+     * @param  {...any} args 
+     */
     static createLinkedScriptElement(...args) {
         const prms = args[0],
             fileName = prms.url;
@@ -1110,6 +1222,10 @@ Mrbr.System.Assembly = class {
         document.head.appendChild(scr);
         return Promise.resolve();
     }
+    /**
+     * Link list of files as HTML Script Elements
+     * @param {Array} fileNames 
+     */
     static createLinkedScriptElements(fileNames) {
         if (filenames === undefined || filenames.length === 0) { return Promise.resolve(); }
         const assembly = Mrbr.System.Assembly;
@@ -1127,7 +1243,10 @@ Mrbr.System.Assembly = class {
         }
         return Promise.all(loadLinkedScriptElements);
     }
-
+    /**
+     * Create Linked Style Element
+     * @param  {...any} args 
+     */
     static createLinkedStyleElement(...args) {
         const prms = args[0],
             fileName = prms.url,
@@ -1137,7 +1256,10 @@ Mrbr.System.Assembly = class {
         assembly._linkedStyleInterceptor === undefined ? assemblyCreateLinkedStyle(prm) : assembly.linkedStyleInterceptor.intercept(assemblyCreateLinkedStyle, undefined, prm)
         return Promise.resolve();
     }
-
+    /**
+     * Create Linked Style Elements from Array 
+     * @param {Array} fileNames 
+     */
     static createLinkedStyleElements(fileNames) {
         if (filenames === undefined || filenames.length === 0) { return Promise.resolve(); }
         const assembly = Mrbr.System.Assembly;
@@ -1155,8 +1277,12 @@ Mrbr.System.Assembly = class {
         }
         return Promise.all(loadLinkedStyleElements);
     }
-
+    /**
+     * Load Interface
+     * @param {String} interfaceName 
+     */
     static loadInterface(interfaceName) {
+        debugger
         let interfaceNames = [interfaceName],
             fileName = interfaceName;
         const assembly = Mrbr.System.Assembly,
@@ -1191,6 +1317,10 @@ Mrbr.System.Assembly = class {
                 });
         })
     }
+    /**
+     * Load Array of Interfaces
+     * @param {Array} interfaceNames 
+     */
     static loadInterfaces(interfaceNames) {
         if (interfaceNames === undefined || interfaceNames.length === 0) { return Promise.resolve(); }
         const assembly = Mrbr.System.Assembly;
@@ -1208,6 +1338,11 @@ Mrbr.System.Assembly = class {
         }
         return Promise.all(loadInterfacesPromises);
     }
+    /**
+     * 
+     * @param {Array} sources 
+     * @param {Class} targetName 
+     */
     static setInterfaceInheritance(sources, targetName) {
         if (sources === undefined) { return; }
         sources = Array.isArray(sources) ? sources : [sources];
@@ -1243,6 +1378,8 @@ Mrbr.System.Assembly = class {
     static initialised(config) {
 
         const assembly = Mrbr.System.Assembly;
+        Mrbr.System.Assembly._fileReplacements = Mrbr.System.Assembly._fileReplacements ||[];
+        config = config || {};
         if (config && config.loadFile !== undefined) {
             assembly.loadFile = config.loadFile
         }
@@ -1281,25 +1418,20 @@ Mrbr.System.Assembly = class {
         assembly._objectCache = {};
         assembly.setArrayPolyFills();
         return new Promise(function (resolve, reject) {
+            const assemblyResolveNamespaceToFile = assembly.resolveNamespaceToFile;
             assembly
                 .loadFiles(
-                    [
-                        { url: Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Utils.Parser.tokenCtor") + ".json", formatUrl: (Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Utils.Parser.tokenCtor") + ".json").toLowerCase() },
-                        { url: Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Utils.Parser.Tokeniser") + ".js", formatUrl: (Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Utils.Parser.Tokeniser") + ".js").toLowerCase() },
-                        { url: Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Object") + ".js", formatUrl: (Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Object") + ".js").toLowerCase() },
-                        { url: Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Interceptor.Interceptor") + ".js", formatUrl: (Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Interceptor.Interceptor") + ".js").toLowerCase() },
-                        { url: Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.ManifestEntry") + ".js", formatUrl: (Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.ManifestEntry") + ".js").toLowerCase() },
-                        { url: Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Inheritance") + ".js", formatUrl: (Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Inheritance") + ".js").toLowerCase() },
-                        { url: Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Exception") + ".js", formatUrl: (Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Exception") + ".js").toLowerCase() }
-                    ])
+                    [{ url: assemblyResolveNamespaceToFile("Mrbr.Utils.Parser.tokenCtor") + ".json", formatUrl: (assemblyResolveNamespaceToFile("Mrbr.Utils.Parser.tokenCtor") + ".json").toLowerCase() }]
+                        .concat([
+                            "Mrbr.Utils.Parser.Tokeniser",
+                            "Mrbr.System.Object",
+                            "Mrbr.Interceptor.Interceptor",
+                            "Mrbr.System.ManifestEntry",
+                            "Mrbr.System.Inheritance",
+                            "Mrbr.System.Exception"
+                        ].map(function (entry) { return { alias: entry, url: assemblyResolveNamespaceToFile(entry) + ".js", formatUrl: (assemblyResolveNamespaceToFile(entry) + ".js").toLowerCase() } }))
+                )
                 .then(() => {
-                    assembly.loader["Mrbr.Utils.Parser.Tokeniser"] = assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Utils.Parser.Tokeniser") + ".js"];
-                    assembly.loader["Mrbr.System.Object"] = assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Object") + ".js"];
-                    assembly.loader["Mrbr.Interceptor.Interceptor"] = assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.Interceptor.Interceptor") + ".js"];
-                    assembly.loader["Mrbr.System.ManifestEntry"] = assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.ManifestEntry") + ".js"];
-                    assembly.loader["Mrbr.System.Inheritance"] = assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Inheritance") + ".js"];
-                    assembly.loader["Mrbr.System.Exception"] = assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile("Mrbr.System.Exception") + ".js"];
-
                     return assembly.loadClass({ entryName: "Mrbr.Utils.Parser.Tokeniser".toLowerCase(), alias: "Mrbr.Utils.Parser.Tokeniser" })
                 })
                 .then(() => assembly.loadClass({ entryName: "Mrbr.System.Object".toLowerCase(), alias: "Mrbr.System.Object" }))
@@ -1382,6 +1514,13 @@ Mrbr.System.Assembly = class {
                 })
         })
     }
+    /**
+     * Create an Array of manifest entries of different classes for the same namespace 
+     * e,g, Namespace: Mrbr.Html; entryType: Class; entries: Div, Ul, Li
+     * @param {String} ns Namespace
+     * @param {String} entryType Manifest typeEntry
+     * @param {Array} entries Array of classes for the Namespace
+     */
     static createNamespaceManifest(ns, entryType, entries) {
         if (ns === undefined || entryType === undefined || entries === undefined || entries.length === 0) { return []; }
         const entriesCount = entries.length
