@@ -27,6 +27,7 @@ class {
       self.base(...args)              
     } 
     get elementType(){return this._elementType ? this._elementType :"img" ;}
-    set elementType(value){this._elementType = value;}
-
+    set elementType(value){this._elementType = value;}    
+    get src(){return this.element.src;}
+    set src(value){this.element.src = value;}
   }

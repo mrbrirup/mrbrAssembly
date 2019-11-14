@@ -222,6 +222,10 @@ class {
     set offsetHeight(value) { this.element.offsetHeight = value; return this; }
     get offsetWidth() { return this.element.offsetWidth; }	//Returns the width of an element, including padding, border and scrollbar
     set offsetWidth(value) { this.element.offsetWidth = value; return this; }
+    get height() { return this.element.height; }	//Returns the height of an element
+    set height(value) { this.element.height = value; return this; }
+    get width() { return this.element.width; }	//Returns the width of an element
+    set width(value) { this.element.width = value; return this; }
     get offsetLeft() { return this.element.offsetLeft; }	//Returns the horizontal offset position of an element
     set offsetLeft(value) { this.element.offsetLeft = value; return this; }
     get offsetParent() { return this.element.offsetParent; }	//Returns the offset container of an element
