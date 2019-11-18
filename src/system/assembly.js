@@ -256,13 +256,19 @@ Mrbr.System.Assembly = class {
      * Converts Class Names to filenames using fileReplacements
      * @param {String} className 
      */
-    static resolveNamespaceToFile(className) {
+    static resolveNamespaceToFile(className, extension) {
         let fileName = className;
         for (let replacementCounter = 0, replacements = Mrbr.System.Assembly._fileReplacements, replacementCount = replacements.length, replacement; replacementCounter < replacementCount; replacementCounter++) {
             replacement = replacements[replacementCounter];
             fileName = `${fileName.split(replacement.replace).join(replacement.with)}`
         }
-        return fileName;
+        if (extension){
+            return fileName + "." + extension
+        }
+        else{
+            return fileName;
+        }
+        
     }
     /**
      * non-operation for when function only needs to be called once, replaced on prototype and called instead
