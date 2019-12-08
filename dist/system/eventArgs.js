@@ -1,0 +1,3 @@
+/*mrbrAssembly 
+Copyright 2019 Martin Ruppersburg
+Licensed under MIT (https://github.com/mrbrirup/mrbrAssembly/blob/master/licence.md)*/class {static get inherits(){return["Mrbr.System.Object"]}static get using(){return[]}static get manifest(){return[]}constructor(...e){this.base(...e),this._source={},this._eventArgs={},e.length>0&&e[0].source&&(this._source=e[0].source),e.length>0&&e[0].eventArgs&&(this._eventArgs=e[0].eventArgs)}get source(){return this._source}set source(e){this._source=e}get eventArgs(){return this._eventArgs}set eventArgs(e){this._eventArgs=e}}

@@ -1,0 +1,3 @@
+/*mrbrAssembly 
+Copyright 2019 Martin Ruppersburg
+Licensed under MIT (https://github.com/mrbrirup/mrbrAssembly/blob/master/licence.md)*/class {static get inherits(){return[]}static get using(){return[]}static get manifest(){return[]}constructor(...t){this.base(...t)}static debounce(t,e,n,s){return function(){const i=this,c=arguments,r=function(){s=null,n||t.apply(i,c)},u=n&&!s;clearTimeout(s),s=setTimeout(r,e),u&&t.apply(i,c)}}}
