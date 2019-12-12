@@ -262,13 +262,13 @@ Mrbr.System.Assembly = class {
             replacement = replacements[replacementCounter];
             fileName = `${fileName.split(replacement.replace).join(replacement.with)}`
         }
-        if (extension){
+        if (extension) {
             return fileName + "." + extension
         }
-        else{
+        else {
             return fileName;
         }
-        
+
     }
     /**
      * non-operation for when function only needs to be called once, replaced on prototype and called instead
@@ -300,6 +300,10 @@ Mrbr.System.Assembly = class {
      * Static object of all files loaded through Assembly
      * Collection is based on the loaded request, Object name or filename
      */
+    static loaderNamespacedFile(fullname, filetype) { return Mrbr.System.Assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile(fullname, filetype)] }
+    static loaderNamespacedFileResult(fullname, filetype) { return Mrbr.System.Assembly.loader[Mrbr.System.Assembly.resolveNamespaceToFile(fullname, filetype)].result }
+    static loaderNamespacedObjectResult(fullname) { return Mrbr.System.Assembly.loader[fullname].result }
+    static loaderNamespacedObject(fullname) { return Mrbr.System.Assembly.loader[fullname] }
     static get loader() { return Mrbr.System.Assembly._loader; }
     /**
      * Loads an HTML Custom Element. 
@@ -1481,6 +1485,14 @@ Mrbr.System.Assembly = class {
                 .then(() => assembly.loadClass({ entryName: "Mrbr.System.ManifestEntry".toLowerCase(), alias: "Mrbr.System.ManifestEntry" }))
                 .then(() => assembly.loadClass({ entryName: "Mrbr.System.Inheritance".toLowerCase(), alias: "Mrbr.System.Inheritance" }))
                 .then(() => assembly.loadClass({ entryName: "Mrbr.System.Exception".toLowerCase(), alias: "Mrbr.System.Exception" }))
+                .then(() => {
+                    if (window) {
+                        return assembly.loadClass({ entryName: "Mrbr.UI.Utils.Utils".toLowerCase(), alias: "Mrbr.UI.Utils.Utils" });
+                    }
+                    else {
+                        return Promise.resolve();
+                    }
+                })
                 .then(function () {
                     Function(assembly.addTypeNameScript("Mrbr.System.Assembly"))();
                     return assembly.loadClasses(assembly.using)
