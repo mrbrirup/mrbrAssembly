@@ -99,6 +99,7 @@ Mrbr.System.Assembly = class {
             });
         loader[fileLoadParameters.url] = { promise: prm, result: undefined, loaded: false };
         if (fileLoadParameters.formattedUrl !== fileLoadParameters.url) { loader[fileLoadParameters.formattedUrl] = loader[fileLoadParameters.url]; }
+        loader.emit(assembly.EVENTS.loadStart, fileLoadParameters)
         fetch(fileLoadParameters.formattedUrl, {
             method: 'GET'
         })
@@ -109,10 +110,20 @@ Mrbr.System.Assembly = class {
                     delete loader[fileLoadParameters.url].promise
                     const prm = { url: fileLoadParameters.url, text: text }
                     text = assembly._fileInterceptor === undefined ? assemblyLoadedFile(prm) : assembly.fileInterceptor.intercept(assemblyLoadedFile, undefined, prm)[1]
+                    loader.emit(assembly.EVENTS.loadSuccess, fileLoadParameters)
+                    loader.emit(assembly.EVENTS.loadComplete, fileLoadParameters)
                     resolver(text);
                 })
-                .catch(function (error) { rejecter(error) }))
-            .catch(function (error) { rejecter(error) })
+                .catch(function (error) {
+                    loader.emit(assembly.EVENTS.loadError, fileLoadParameters)
+                    loader.emit(assembly.EVENTS.loadComplete, fileLoadParameters)
+                    rejecter(error)
+                }))
+            .catch(function (error) {
+                loader.emit(assembly.EVENTS.loadError, fileLoadParameters)
+                loader.emit(assembly.EVENTS.loadComplete, fileLoadParameters)
+                rejecter(error)
+            })
         return prm
     }
     /**
@@ -123,7 +134,8 @@ Mrbr.System.Assembly = class {
      */
     static isLoadInProgress(url) {
         const loader = Mrbr.System.Assembly.loader;
-        if (loader.hasOwnProperty(url)) {
+        if (loader[url] !== undefined && loader[url] !== null) {
+
             let loadUrlObject = loader[url];
             if (loadUrlObject.loaded === true) {
                 return Promise.resolve();
@@ -206,6 +218,20 @@ Mrbr.System.Assembly = class {
             }
         });
     }
+    static EVENTS() {
+        return {
+            loadStart: "mrbr-assembly-load-start",
+            loadComplete: "mrbr-assembly-load-complete",
+            loadSuccess: "mrbr-assembly-load-success",
+            loadError: "mrbr-assembly-load-success"
+        }
+    }
+    loadStart() {
+        this.dispatchEvent
+    }
+    loadComplete() { }
+    loadError() { }
+    loadSuccess() { }
     /**
      * Stub function for loadFile function.
      * Replaced by fetchFile, loadXmlHttpFile or custom load file function
@@ -1409,9 +1435,11 @@ Mrbr.System.Assembly = class {
      * Additional application scripts should be run after Assembly Initialise Promise is resolved 
      * @returns {Promise} resolves when all files are loaded
      */
+
     static initialised(config) {
 
         const assembly = Mrbr.System.Assembly;
+
         Mrbr.System.Assembly._fileReplacements = Mrbr.System.Assembly._fileReplacements || [];
         config = config || {};
         if (config && config.loadFile !== undefined) {
@@ -1448,7 +1476,13 @@ Mrbr.System.Assembly = class {
                 assembly.fileReplacements = config.assemblyResolvers;
             }
         }
-        assembly._loader = {};
+        assembly._loader = new (class {
+            get events(){ return []; }
+            on() { }
+            removeListener() { }
+            emit() { }
+            once() { }
+        });
         assembly._objectCache = {};
         assembly.setArrayPolyFills();
         return new Promise(function (resolve, reject) {
@@ -1462,10 +1496,17 @@ Mrbr.System.Assembly = class {
                             "Mrbr.Interceptor.Interceptor",
                             "Mrbr.System.ManifestEntry",
                             "Mrbr.System.Inheritance",
-                            "Mrbr.System.Exception"
+                            "Mrbr.System.Exception",
+
                         ].map(function (entry) { return { alias: entry, url: assemblyResolveNamespaceToFile(entry) + ".js", formatUrl: (assemblyResolveNamespaceToFile(entry) + ".js").toLowerCase() } }))
                 )
+                // .then(() => {
+                //     return assembly.loadClass({ entryName: "Mrbr.System.EventEmitter".toLowerCase(), alias: "Mrbr.System.EventEmitter" })
+                // })
+                //.then(()=>{
+                //})
                 .then(() => {
+                    //assembly._loader = Object.assign(assembly._loader, new Mrbr.System.EventEmitter());
                     return assembly.loadClass({ entryName: "Mrbr.Utils.Parser.Tokeniser".toLowerCase(), alias: "Mrbr.Utils.Parser.Tokeniser" })
                 })
                 .then(() => assembly.loadClass({ entryName: "Mrbr.System.Object".toLowerCase(), alias: "Mrbr.System.Object" }))
@@ -1497,7 +1538,14 @@ Mrbr.System.Assembly = class {
                     Function(assembly.addTypeNameScript("Mrbr.System.Assembly"))();
                     return assembly.loadClasses(assembly.using)
                 })
+                .then(() => {
+                    return assembly.loadClass({ entryName: "Mrbr.System.EventEmitter".toLowerCase(), alias: "Mrbr.System.EventEmitter" })
+                })
+                //.then(()=>{
+                //})
+
                 .then(function () {
+                    assembly._loader = Object.assign(new Mrbr.System.EventEmitter(), assembly._loader)
                     resolve();
                 })
                 .catch(function (error) {

@@ -46,7 +46,7 @@ class {
             postCount = self_post.length;
         for (let preCounter = 0; preCounter < preCount; preCounter++) {
             const pre = self_pre[preCounter]
-            debugger
+            //debugger
             let result = pre.fn.apply(pre.ctx !== undefined ? pre.ctx : self, args);
             if (result !== undefined) { args.push(result); }
         }
