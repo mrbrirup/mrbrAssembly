@@ -73,7 +73,7 @@ Mrbr.System.Assembly = class {
     static set defaultContext(value) { Mrbr.System.Assembly._defaultContext = value; }
     static get objectCache() {
         return Mrbr.System.Assembly._objectCache
-    }
+    }    
     /**
      * Loads a file using using browser fetch function.
      * Default assembly functionality will assign from fetch, XMLHTTP or File load function passed to initialiser
@@ -90,6 +90,7 @@ Mrbr.System.Assembly = class {
             loader = assembly.loader,
             assemblyLoadedFile = assembly.loadedFile;
         let loadInProgress;
+        //debugger
         if ((loadInProgress = assembly.isLoadInProgress(fileLoadParameters.url)) !== null) { return loadInProgress };
         let resolver,
             rejecter,
@@ -97,7 +98,9 @@ Mrbr.System.Assembly = class {
                 resolver = resolve;
                 rejecter = reject;
             });
-        loader[fileLoadParameters.url] = { promise: prm, result: undefined, loaded: false };
+            //loader[fileLoadParameters.url] = { promise: prm, result: undefined, loaded: false, createdTime: new Date(), completedTime: null };
+            loader[fileLoadParameters.url] = new assembly.File(prm);
+
         if (fileLoadParameters.formattedUrl !== fileLoadParameters.url) { loader[fileLoadParameters.formattedUrl] = loader[fileLoadParameters.url]; }
         loader.emit(assembly.EVENTS.loadStart, fileLoadParameters)
         fetch(fileLoadParameters.formattedUrl, {
@@ -107,11 +110,12 @@ Mrbr.System.Assembly = class {
                 .then(text => {
                     loader[fileLoadParameters.url].result = text;
                     loader[fileLoadParameters.url].loaded = true;
-                    delete loader[fileLoadParameters.url].promise
+                    loader[fileLoadParameters.url].promise = null;                    
                     const prm = { url: fileLoadParameters.url, text: text }
                     text = assembly._fileInterceptor === undefined ? assemblyLoadedFile(prm) : assembly.fileInterceptor.intercept(assemblyLoadedFile, undefined, prm)[1]
                     loader.emit(assembly.EVENTS.loadSuccess, fileLoadParameters)
                     loader.emit(assembly.EVENTS.loadComplete, fileLoadParameters)
+                    loader[fileLoadParameters.url].completedTime = new Date();
                     resolver(text);
                 })
                 .catch(function (error) {
@@ -138,7 +142,7 @@ Mrbr.System.Assembly = class {
 
             let loadUrlObject = loader[url];
             if (loadUrlObject.loaded === true) {
-                return Promise.resolve();
+                return Promise.resolve(loadUrlObject.result);
             }
             else {
                 return loadUrlObject.promise;
@@ -268,6 +272,13 @@ Mrbr.System.Assembly = class {
         const assembly = Mrbr.System.Assembly;
         return `\nObject.defineProperty(${className}.prototype, '${assembly.typePropertyName}', { get: function() {return ${className}.${assembly.typePropertyName};}});\n${className}.${assembly.typePropertyName} = "${className}";`
     }
+    static addComponentCreator(componentName) {
+        return `\nObject.defineProperty(${componentName}, 'create', { value: function(...initValues) { const newComponent = new ${componentName}(); newComponent.init(...initValues) ; return newComponent;}, configurable: false, enumerable: true, writable: false, name: "create" });\n`
+        //const assembly = Mrbr.System.Assembly;
+        //console.log(`\nObject.defineProperty(${componentName}.prototype, 'create', {value: function(...initValues) {const newComponent = new ${componentName}();\nnewComponent.init(...initValues) ;\n return newComponent;}})`);
+        //return `\nObject.defineProperty(${componentName}.prototype, 'create', {value: function(...initValues) {const newComponent = new ${componentName}();;\nnewComponent.init(...initValues) ;\n return newComponent;}})`
+        //return `\nObject.defineProperty(${componentName}.prototype, 'create', { function(...initValues) {const newComponent = new ${componentName}();}});\nnewComponent.init(...initValues) ;\n return newComponent;`
+    }
     /**
      * Array of replacements to convert namespaces and object names to file names
      * e.g. Mrbr.System.Object is converted to system/object.js
@@ -286,7 +297,13 @@ Mrbr.System.Assembly = class {
         let fileName = className;
         for (let replacementCounter = 0, replacements = Mrbr.System.Assembly._fileReplacements, replacementCount = replacements.length, replacement; replacementCounter < replacementCount; replacementCounter++) {
             replacement = replacements[replacementCounter];
-            fileName = `${fileName.split(replacement.replace).join(replacement.with)}`
+            if (typeof replacement.with === "function") {
+                //debugger;
+                fileName = replacement.with(fileName);
+            }
+            else {
+                fileName = `${fileName.split(replacement.replace).join(replacement.with)}`
+            }
         }
         if (extension) {
             return fileName + "." + extension
@@ -367,6 +384,8 @@ Mrbr.System.Assembly = class {
             assemblyLoadManifest = assembly.loadManifest,
             assemblyCreateComponent = assembly.createComponent,
             assemblyResolvedPromise = assembly.resolvedPromise,
+            assemblySetInheritance = assembly.setInheritance,
+            assemblyAddClassCtor = assembly.addClassCtor,
             assemblyNop = assembly.nop;
         let fileName = makeFileReplacements(componentName) + ".js";
         return new Promise(function (resolve, reject) {
@@ -390,20 +409,23 @@ Mrbr.System.Assembly = class {
                         const prm = { componentName: componentAlias, result: result, assembly: assembly, assemblyToObject: assemblyToObject };
                         assembly._componentInterceptor === undefined ? assemblyCreateComponent(prm) : assembly.componentInterceptor.intercept(assemblyCreateComponent, undefined, prm);
                     }
-                    assembly
-                        .loadSubManifest(assemblyToObject, componentName, assemblyLoadManifest)
-                        .then(_ => {
-                            return assembly.loadSubRequirements(
-                                assemblyToObject,
-                                componentName,
-                                [componentName],
-                                assemblyLoadClasses,
-                                reject,
-                                assemblyResolvedPromise,
-                                assemblyNop,
-                                resolve)
-                        })
                 })
+                .then(() => { return assembly.loadSubManifest(assemblyToObject, componentName, assemblyLoadManifest) })
+                .then(_ => {
+                    //if (componentName.toLowerCase().endsWith("table")) debugger
+                    return assembly.loadSubRequirements(
+                        assemblyToObject,
+                        componentName,
+                        [componentName],
+                        assemblyLoadClasses,
+                        reject,
+                        //assemblyToObject(componentName).baseElement === undefined ?  assemblyResolvedPromise : assemblySetInheritance,
+                        //assemblyToObject(componentName).baseElement === undefined ?  assemblyNop : assemblyAddClassCtor ,
+                        assemblySetInheritance,
+                        assemblyAddClassCtor,
+                        resolve)
+                })
+                //})
                 .catch(function (error) {
                     reject(error);
                 })
@@ -456,7 +478,15 @@ Mrbr.System.Assembly = class {
             result = prms.result,
             assembly = prms.assembly,
             assemblyToObject = prms.assemblyToObject;
-        Function(`${componentName} = ${result};\ncustomElements.define('${componentName.toLowerCase().split(".").join("-")}', ${componentName});`)();
+        Function(`${componentName} = ${result};\n${assembly.addTypeNameScript(componentName)};\n`)()
+        Function(assembly.addComponentCreator(componentName))()
+        let baseElement = assemblyToObject(componentName).baseElement;
+        if (baseElement === undefined) {
+            Function(`customElements.define('${componentName.toLowerCase().split(".").join("-")}', ${componentName});`)();
+        }
+        else {
+            Function(`customElements.define('${componentName.toLowerCase().split(".").join("-")}', ${componentName}, {extends : "${baseElement}"});`)();
+        }
         assembly.objectCache[componentName] = assemblyToObject(componentName);
     }
     /**
@@ -1016,11 +1046,12 @@ Mrbr.System.Assembly = class {
             for (let counter = bodyStart + 1; counter <= bodyEnd - 1; counter++) {
                 arrBody[counter] = tokens[counter].value;
             }
-            let rx1 = /\s*super\(\);{0,1}/g;
+            let rxSuper = /\s*super\s*\(.*?\)\s*;{0,1}/g;
+
             Object.defineProperty(classType.prototype, "ctor", {
                 value: fnArgs.length === 0 ?
-                    Function((`\n${arrBody.join("").trim()}\n`)) :
-                    Function(fnArgs, (`\n${arrBody.join("").trim() + `/* comment ctor ${classType.prototype.mrbrAssemblyTypeName} */`}\n`)),
+                    Function(`\n${arrBody.join("").trim()}\n`.replace(rxSuper, "\n")) :
+                    Function(fnArgs, `\n${arrBody.join("").trim().replace(rxSuper, "\n") + `/* comment ctor ${classType.prototype.mrbrAssemblyTypeName} */`}\n`),
                 configurable: false,
                 enumerable: true,
                 writable: false
@@ -1043,6 +1074,7 @@ Mrbr.System.Assembly = class {
                     called.push(`${classType.prototype.mrbrAssemblyTypeName.split(".").join("_")}_ctor`);
                     assemblyCallInteritance(classType, called, constructorsToCall, assemblyCallInteritance, assemblyToObject)
                     for (let constructorCounter = 0, constructorCount = constructorsToCall.length; constructorCounter < constructorCount; constructorCounter++) {
+                        //if (called.includes(constructorsToCall[constructorCounter])) { continue; }
                         self[constructorsToCall[constructorCounter]](...args);
                     }
                 },
@@ -1099,7 +1131,7 @@ Mrbr.System.Assembly = class {
         const assembly = Mrbr.System.Assembly;
         if (obj.inherits && obj.mrbrAssemblyTypeName) {
             for (let inheritCounter = 0, inheritCount = obj.inherits.length, inherits = obj.inherits; inheritCounter < inheritCount; inheritCounter++) {
-                let inherit = inherits[inheritCounter];
+                let inherit = inherits[inheritCounter].trim();
                 if (!keys.includes(inherit)) {
                     keys.push(inherit)
                     assembly.listClassInheritance(keys, assembly.toObject(inherit));
@@ -1439,7 +1471,25 @@ Mrbr.System.Assembly = class {
     static initialised(config) {
 
         const assembly = Mrbr.System.Assembly;
-
+        assembly.File = class {
+            constructor(promise){
+                this._promise = promise;
+                this._result = null;
+                this._createdTime = new Date();
+                this._completedTime = null;
+                this._loaded = false;
+            }
+            get loaded(){return this._loaded;}
+            set loaded(value){this._loaded = value;}
+            get result(){return this._result;}
+            set result(value){this._result = value;}
+            get promise(){return this._promise;}
+            set promise(value){this._promise = value;}
+            get createdTime(){return this._createdTime;}
+            set createdTime(value){this._createdTime = value;}
+            get completedTime(){return this._completedTime;}
+            set completedTime(value){this._completedTime = value;}
+        }
         Mrbr.System.Assembly._fileReplacements = Mrbr.System.Assembly._fileReplacements || [];
         config = config || {};
         if (config && config.loadFile !== undefined) {
@@ -1477,7 +1527,7 @@ Mrbr.System.Assembly = class {
             }
         }
         assembly._loader = new (class {
-            get events(){ return []; }
+            get events() { return []; }
             on() { }
             removeListener() { }
             emit() { }
@@ -1496,9 +1546,9 @@ Mrbr.System.Assembly = class {
                             "Mrbr.Interceptor.Interceptor",
                             "Mrbr.System.ManifestEntry",
                             "Mrbr.System.Inheritance",
-                            "Mrbr.System.Exception",
-
-                        ].map(function (entry) { return { alias: entry, url: assemblyResolveNamespaceToFile(entry) + ".js", formatUrl: (assemblyResolveNamespaceToFile(entry) + ".js").toLowerCase() } }))
+                            "Mrbr.System.Exception"
+                            //].map(function (entry) { return { entryName: entry, alias: entry} }))
+                        ].map(function (entry) { return { /*entryName:entry,*/ alias: entry, url: assemblyResolveNamespaceToFile(entry) + ".js", formatUrl: (assemblyResolveNamespaceToFile(entry) + ".js") } }))
                 )
                 // .then(() => {
                 //     return assembly.loadClass({ entryName: "Mrbr.System.EventEmitter".toLowerCase(), alias: "Mrbr.System.EventEmitter" })
@@ -1507,10 +1557,10 @@ Mrbr.System.Assembly = class {
                 //})
                 .then(() => {
                     //assembly._loader = Object.assign(assembly._loader, new Mrbr.System.EventEmitter());
-                    return assembly.loadClass({ entryName: "Mrbr.Utils.Parser.Tokeniser".toLowerCase(), alias: "Mrbr.Utils.Parser.Tokeniser" })
+                    return assembly.loadClass({ entryName: "Mrbr.Utils.Parser.Tokeniser", alias: "Mrbr.Utils.Parser.Tokeniser" })
                 })
-                .then(() => assembly.loadClass({ entryName: "Mrbr.System.Object".toLowerCase(), alias: "Mrbr.System.Object" }))
-                .then(() => assembly.loadClass({ entryName: "Mrbr.Interceptor.Interceptor".toLowerCase(), alias: "Mrbr.Interceptor.Interceptor" }))
+                .then(() => assembly.loadClass({ entryName: "Mrbr.System.Object", alias: "Mrbr.System.Object" }))
+                .then(() => assembly.loadClass({ entryName: "Mrbr.Interceptor.Interceptor", alias: "Mrbr.Interceptor.Interceptor" }))
                 .then(() => {
                     const mii = Mrbr.Interceptor.Interceptor;
                     assembly._classInterceptor = new mii()
@@ -1523,12 +1573,12 @@ Mrbr.System.Assembly = class {
                     assembly._configInterceptor = new mii()
                 })
                 .catch(error => console.log(error))
-                .then(() => assembly.loadClass({ entryName: "Mrbr.System.ManifestEntry".toLowerCase(), alias: "Mrbr.System.ManifestEntry" }))
-                .then(() => assembly.loadClass({ entryName: "Mrbr.System.Inheritance".toLowerCase(), alias: "Mrbr.System.Inheritance" }))
-                .then(() => assembly.loadClass({ entryName: "Mrbr.System.Exception".toLowerCase(), alias: "Mrbr.System.Exception" }))
+                .then(() => assembly.loadClass({ entryName: "Mrbr.System.ManifestEntry", alias: "Mrbr.System.ManifestEntry" }))
+                .then(() => assembly.loadClass({ entryName: "Mrbr.System.Inheritance", alias: "Mrbr.System.Inheritance" }))
+                .then(() => assembly.loadClass({ entryName: "Mrbr.System.Exception", alias: "Mrbr.System.Exception" }))
                 .then(() => {
                     if (window) {
-                        return assembly.loadClass({ entryName: "Mrbr.UI.Utils.Utils".toLowerCase(), alias: "Mrbr.UI.Utils.Utils" });
+                        return assembly.loadClass({ entryName: "Mrbr.UI.Utils.Utils", alias: "Mrbr.UI.Utils.Utils" });
                     }
                     else {
                         return Promise.resolve();
@@ -1539,7 +1589,7 @@ Mrbr.System.Assembly = class {
                     return assembly.loadClasses(assembly.using)
                 })
                 .then(() => {
-                    return assembly.loadClass({ entryName: "Mrbr.System.EventEmitter".toLowerCase(), alias: "Mrbr.System.EventEmitter" })
+                    return assembly.loadClass({ entryName: "Mrbr.System.EventEmitter", alias: "Mrbr.System.EventEmitter" })
                 })
                 //.then(()=>{
                 //})
